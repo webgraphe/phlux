@@ -5,9 +5,10 @@ declare(strict_types=1);
 namespace Webgraphe\Phlux;
 
 use IteratorAggregate;
-use JsonSerializable;
 use stdClass;
 use Traversable;
+use Webgraphe\Phlux\Contracts\DataTransferObject;
+use Webgraphe\Phlux\Exceptions\DiscriminatorException;
 use Webgraphe\Phlux\Exceptions\PresentException;
 
 /**
@@ -15,7 +16,7 @@ use Webgraphe\Phlux\Exceptions\PresentException;
  * Make Data objects into resources
  * Lazy properties?
  */
-abstract readonly class Data implements JsonSerializable, IteratorAggregate
+abstract readonly class Data implements DataTransferObject, IteratorAggregate
 {
     final public function __construct(iterable|stdClass|null $data = null)
     {
@@ -30,15 +31,35 @@ abstract readonly class Data implements JsonSerializable, IteratorAggregate
         }
     }
 
+    /**
+     * @throws DiscriminatorException
+     */
     final public static function lazy(iterable|stdClass|null $data): static
     {
-        // TODO Discriminate
         /** @noinspection PhpIncompatibleReturnTypeInspection */
-        return static::meta()->reflectionClass()->newLazyGhost(
+        return static::discriminatedMeta($data)->reflectionClass()->newLazyGhost(
             function (self $instance) use ($data) {
                 Meta::lazy(static fn() => $instance->__construct($data));
             },
         );
+    }
+
+    /**
+     * @throws DiscriminatorException
+     */
+    final public static function from(iterable|stdClass|null $data): static
+    {
+        return new (static::discriminatedMeta($data)->class)($data);
+    }
+
+    /**
+     * @throws DiscriminatorException
+     */
+    private static function discriminatedMeta(iterable|stdClass|null $data): Meta
+    {
+        return ($discriminator = static::meta()->getDiscriminator())
+            ? Meta::get($discriminator->resolveClass($data, static::class))
+            : static::meta();
     }
 
     public static function meta(): Meta
@@ -58,6 +79,7 @@ abstract readonly class Data implements JsonSerializable, IteratorAggregate
 
     public function getIterator(): Traversable
     {
+        // Using Meta to return public vars only
         yield from self::meta()->vars($this);
     }
 }
