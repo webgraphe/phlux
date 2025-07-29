@@ -15,10 +15,12 @@ use ReflectionException;
 use ReflectionNamedType;
 use ReflectionProperty;
 use ReflectionType;
+use Webgraphe\Phlux\Attributes\Discriminator;
 use Webgraphe\Phlux\Attributes\ItemPrototype;
 use Webgraphe\Phlux\Attributes\ItemType;
 use Webgraphe\Phlux\Attributes\Present;
 use Webgraphe\Phlux\Concerns\EmitsEvents;
+use Webgraphe\Phlux\Contracts\DataTransferObject;
 use Webgraphe\Phlux\Contracts\EventEmitter;
 use Webgraphe\Phlux\Contracts\Unmarshaller;
 use Webgraphe\Phlux\Exceptions\PresentException;
@@ -32,8 +34,10 @@ final class Meta implements EventEmitter
 
     public const string SIGNAL_EXCEPTION = 'exception';
 
-    /** @var array<class-string<Data>, ReflectionClass> */
+    /** @var array<class-string<DataTransferObject>, ReflectionClass> */
     private static array $reflections = [];
+    /** @var array<class-string<DataTransferObject>, Discriminator|null> */
+    private static array $discriminators = [];
     private static array $instances = [];
     private static int $lazy = 0;
 
@@ -54,24 +58,22 @@ final class Meta implements EventEmitter
     }
 
     /**
-     * @param class-string<Data> $class
+     * @param class-string<DataTransferObject> $class
      */
     public static function get(string $class): self
     {
         return self::$instances[$class] ??= new self($class);
     }
 
-    private static function isComposite(ReflectionNamedType $type): bool
-    {
-        return in_array($type->getName(), ['array', 'object']);
-    }
-
-    public function vars(Data $data): Generator
+    /**
+     * Because Meta is separate from Data, it only returns the public vars
+     */
+    public function vars(DataTransferObject $data): Generator
     {
         yield from get_object_vars($data);
     }
 
-    public function marshal(Data $data): Generator
+    public function marshal(DataTransferObject $data): Generator
     {
         foreach ($this->vars($data) as $name => $value) {
             yield $name => self::arrayize($value);
@@ -90,6 +92,26 @@ final class Meta implements EventEmitter
                 self::emit($this, self::SIGNAL_EXCEPTION, $e);
             }
         }
+    }
+
+    public function reflectionClass(): ReflectionClass
+    {
+        return self::$reflections[$this->class] ??= (static fn(string $c) => new ReflectionClass($c))($this->class);
+    }
+
+    public function getDiscriminator(): ?Discriminator
+    {
+        if (!array_key_exists($this->class, self::$discriminators)) {
+            $discriminated = $this->reflectionClass()->getAttributes(Discriminator::class)[0] ?? null;
+            self::$discriminators[$this->class] = $discriminated?->newInstance();
+        }
+
+        return self::$discriminators[$this->class];
+    }
+
+    private static function isComposite(ReflectionNamedType $type): bool
+    {
+        return in_array($type->getName(), ['array', 'object']);
     }
 
     /**
@@ -154,7 +176,7 @@ final class Meta implements EventEmitter
     }
 
     /**
-     * @return class-string<Data>
+     * @return class-string<DataTransferObject>
      * @throws UnknownClassException
      * @throws UnsupportedClassException
      */
@@ -169,8 +191,8 @@ final class Meta implements EventEmitter
             throw new UnknownClassException($class);
         }
 
-        if (!is_a($class, Data::class, true)
-            && (Data::class !== $class)
+        if (!is_subclass_of($class, DataTransferObject::class, true)
+            && (DataTransferObject::class !== $class)
             && !is_a($class, DateTimeImmutable::class, true)
             && (DateTimeInterface::class !== $class)
             && !is_a($class, BackedEnum::class, true)
@@ -188,9 +210,9 @@ final class Meta implements EventEmitter
     private static function classUnmarshaller(string $class, ReflectionType $type, string $stub): Closure
     {
         $callable = match (true) {
-            is_a($class, Data::class, true) => static fn(mixed $value) => self::$lazy
+            is_a($class, DataTransferObject::class, true) => static fn(mixed $value) => self::$lazy
                 ? $class::lazy($value)
-                : new $class($value),
+                : $class::from($value),
             is_a($class, DateTimeImmutable::class, true) => static fn(mixed $value)
                 => $value instanceof DateTimeImmutable ? $value : new $class($value ?? 'now'),
             DateTimeInterface::class === $class => static fn(mixed $value)
@@ -229,15 +251,10 @@ final class Meta implements EventEmitter
         };
     }
 
-    public function reflectionClass(): ReflectionClass
-    {
-        return self::$reflections[$this->class] ??= (static fn(string $c) => new ReflectionClass($c))($this->class);
-    }
-
     private static function arrayize(mixed $value): mixed
     {
         return match (true) {
-            $value instanceof Data => $value->toArray() ?: (object)[],
+            $value instanceof DataTransferObject => $value->toArray() ?: (object)[],
             $value instanceof BackedEnum => $value->value,
             $value instanceof DateTimeInterface => $value->format('Y-m-d H:i:s e'),
             is_array($value) => array_map(self::arrayize(...), $value),
