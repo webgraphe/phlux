@@ -1,0 +1,5 @@
+.gitconfig
+composer.lock
+/.idea
+/.phpunit.cache
+/vendor

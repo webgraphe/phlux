@@ -1,0 +1,20 @@
+services:
+    php-cli:
+        container_name: phlux-php-cli
+        build:
+            context: .
+            dockerfile: .docker/php-cli/Dockerfile
+        volumes:
+            - .:/opt/project
+        cap_add:
+            - SYS_PTRACE
+        command: "/usr/bin/tail -f /dev/null"
+        networks:
+            - bridge-network
+            - phlux-network
+
+networks:
+    bridge-network:
+        driver: bridge
+    phlux-network:
+        external: true
