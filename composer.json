@@ -14,7 +14,8 @@
     },
     "require-dev": {
         "phpunit/phpunit": "^12.0",
-        "psy/psysh": "^0.12.7"
+        "psy/psysh": "^0.12.7",
+        "phpstan/phpstan": "^2.0"
     },
     "license": "MIT",
     "autoload": {
@@ -33,6 +34,9 @@
         ],
         "ci-tests-with-coverage": [
             "php -dxdebug.mode=coverage vendor/bin/phpunit --fail-on-all-issues --testsuite \"CI\" --coverage-text"
+        ],
+        "ci-stan": [
+            "vendor/bin/phpstan --configuration=phpstan.src.neon.dist --no-progress"
         ]
     },
     "minimum-stability": "stable"

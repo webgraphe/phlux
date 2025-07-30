@@ -1,8 +1,8 @@
 <?php
 
-namespace Webgraphe\PhluxTests\Dummies\Discriminated;
+declare(strict_types=1);
 
-use Symfony\Component\VarDumper\Cloner\Data;
+namespace Webgraphe\PhluxTests\Dummies\Discriminated;
 
 readonly class UnmappedLeftData extends AbstractUnmappedData
 {

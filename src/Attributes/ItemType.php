@@ -27,6 +27,7 @@ final readonly class ItemType
         'object' => true,
     ];
 
+    // @phpstan-ignore property.uninitializedReadonly
     private ReflectionNamedType $reflectionNamedType;
 
     public function __construct(public string $type) {}
@@ -53,7 +54,6 @@ final readonly class ItemType
 
             public function allowsNull(): bool
             {
-                // FIXME Add support for nullable types?
                 return false;
             }
         };

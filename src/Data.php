@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Webgraphe\Phlux;
 
-use IteratorAggregate;
 use stdClass;
 use Traversable;
 use Webgraphe\Phlux\Contracts\DataTransferObject;
@@ -16,7 +15,7 @@ use Webgraphe\Phlux\Exceptions\PresentException;
  * Make Data objects into resources
  * Lazy properties?
  */
-abstract readonly class Data implements DataTransferObject, IteratorAggregate
+abstract readonly class Data implements DataTransferObject
 {
     final public function __construct(iterable|stdClass|null $data = null)
     {
