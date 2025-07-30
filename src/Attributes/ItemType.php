@@ -39,6 +39,7 @@ final readonly class ItemType
 
     public function asReflectionNamedType(): ReflectionNamedType
     {
+        // @phpstan-ignore property.readOnlyAssignNotInConstructor
         return $this->reflectionNamedType ??= new class($this) extends ReflectionNamedType {
             public function __construct(private readonly ItemType $itemType) {}
 

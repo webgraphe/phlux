@@ -20,7 +20,7 @@ abstract readonly class Data implements DataTransferObject
     final public function __construct(iterable|stdClass|null $data = null)
     {
         $array = $data instanceof stdClass ? get_object_vars($data) : iterator_to_array($data ?? []);
-        foreach (static::meta()->unmarshallers() ?? [] as $name => $unmarshaller) {
+        foreach (static::meta()->unmarshallers() as $name => $unmarshaller) {
             try {
                 $this->$name = array_key_exists($name, $array)
                     ? $unmarshaller($array[$name])
@@ -35,7 +35,10 @@ abstract readonly class Data implements DataTransferObject
      */
     final public static function lazy(iterable|stdClass|null $data): static
     {
-        /** @noinspection PhpIncompatibleReturnTypeInspection */
+        /**
+         * @noinspection PhpIncompatibleReturnTypeInspection
+         * @phpstan-ignore return.type
+         */
         return static::discriminatedMeta($data)->reflectionClass()->newLazyGhost(
             function (self $instance) use ($data) {
                 Meta::lazy(static fn() => $instance->__construct($data));
@@ -48,13 +51,14 @@ abstract readonly class Data implements DataTransferObject
      */
     final public static function from(iterable|stdClass|null $data): static
     {
+        // @phpstan-ignore return.type
         return new (static::discriminatedMeta($data)->class)($data);
     }
 
     /**
      * @throws DiscriminatorException
      */
-    private static function discriminatedMeta(iterable|stdClass|null $data): Meta
+    public static function discriminatedMeta(iterable|stdClass|null $data): Meta
     {
         return ($discriminator = static::meta()->getDiscriminator())
             ? Meta::get($discriminator->resolveClass($data, static::class))
@@ -79,6 +83,6 @@ abstract readonly class Data implements DataTransferObject
     public function getIterator(): Traversable
     {
         // Using Meta to return public vars only
-        yield from self::meta()->vars($this);
+        yield from static::meta()->vars($this);
     }
 }
