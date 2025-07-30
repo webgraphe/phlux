@@ -2,7 +2,7 @@
     "name": "webgraphe/phlux",
     "description": "Yet another PHP DataTransferObject library",
     "type": "library",
-    "version": "1.0.0",
+    "version": "0.1.0",
     "authors": [
         {
             "name": "Jean-Philippe Léveillé",
