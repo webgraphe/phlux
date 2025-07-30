@@ -79,11 +79,13 @@ readonly class Person extends Webgraphe\Phlux\Data
 
 $json = '{"firstName":"John","lastName":"Doe"}';
 // Passing JSON-decoded data (a stdClass instance)
-$person = new Person(json_decode($json));
+$johnDoe = new Person(json_decode($json));
 // Passing another DTO
-$person = Person::from($person);
+$johnDoeClone = Person::from($johnDoe);
 // A lazy-object hydrated from an associative array
-$lazyPerson = Person::lazy(json_decode($json, true));
+$lazyJohnDoe = Person::lazy(json_decode($json, true));
 // Object initializes its properties ONLY when reading them 
-echo $lazyPerson->firstName;
+echo $lazyPerson->firstName; // prints "John"
+// Encoding back to JSON
+$json = json_encode($johnDoe);
 ```
