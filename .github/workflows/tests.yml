@@ -1,0 +1,29 @@
+name: Tests and Static Analysis
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, ready_for_review]
+permissions:
+  contents: read
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: true
+      matrix:
+        php: [8.4]
+    name: PHP ${{ matrix.php }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: json
+          coverage: pcov
+      - name: Install Composer Dependencies
+        run: composer install --prefer-dist --no-interaction --no-progress
+      - name: Execute Tests
+        run: composer ci-tests-with-coverage
+      - name: Run Static Analysis
+        run: composer ci-stan

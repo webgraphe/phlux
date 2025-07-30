@@ -1,9 +1,12 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Webgraphe\Phlux\Attributes;
 
 use Attribute;
 use stdClass;
+use Webgraphe\Phlux\Contracts\DataTransferObject;
 use Webgraphe\Phlux\Data;
 use Webgraphe\Phlux\Exceptions\DiscriminatorException;
 
@@ -17,7 +20,7 @@ final readonly class Discriminator
     public function __construct(public string $propertyName, public ?array $mapping = null) {}
 
     /**
-     * @return class-string<Data>
+     * @return class-string<DataTransferObject>
      * @throws DiscriminatorException
      */
     public function resolveClass(iterable|stdClass|null $data, string $parent): string
@@ -28,7 +31,8 @@ final readonly class Discriminator
             throw new DiscriminatorException("$stub's data is missing");
         }
 
-        $discriminator = $array[$this->propertyName];
+        is_string($discriminator = $array[$this->propertyName])
+        or throw new DiscriminatorException("Discriminator value must be string");
 
         if ($this->mapping) {
             if (($class = $this->mapping[$discriminator] ?? null)) {
@@ -43,7 +47,7 @@ final readonly class Discriminator
         }
 
         $class = str_replace('/', '\\', dirname(str_replace('\\', '/', $parent)) . '/' . $discriminator);
-        if (class_exists($class)) {
+        if (class_exists($class) and is_subclass_of($class, DataTransferObject::class)) {
             return $class;
         }
 

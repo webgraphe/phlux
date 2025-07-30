@@ -1,11 +1,14 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Webgraphe\Phlux\Contracts;
 
+use IteratorAggregate;
 use JsonSerializable;
 use stdClass;
 
-interface DataTransferObject extends JsonSerializable
+interface DataTransferObject extends JsonSerializable, IteratorAggregate
 {
     public function __construct(iterable|stdClass|null $data = null);
 

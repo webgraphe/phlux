@@ -103,6 +103,7 @@ final class Meta implements EventEmitter
     {
         if (!array_key_exists($this->class, self::$discriminators)) {
             $discriminated = $this->reflectionClass()->getAttributes(Discriminator::class)[0] ?? null;
+            // TODO Validate property of type string
             self::$discriminators[$this->class] = $discriminated?->newInstance();
         }
 
@@ -191,7 +192,7 @@ final class Meta implements EventEmitter
             throw new UnknownClassException($class);
         }
 
-        if (!is_subclass_of($class, DataTransferObject::class, true)
+        if (!is_subclass_of($class, DataTransferObject::class)
             && (DataTransferObject::class !== $class)
             && !is_a($class, DateTimeImmutable::class, true)
             && (DateTimeInterface::class !== $class)
