@@ -1,8 +1,11 @@
 {
     "name": "webgraphe/phlux",
     "description": "Yet another PHP DataTransferObject library",
-    "type": "library",
-    "version": "0.1.0",
+    "license": "MIT",
+    "support": {
+        "issues": "https://github.com/webgraphe/phlux/issues",
+        "source": "https://github.com/webgraphe/phlux"
+    },
     "authors": [
         {
             "name": "Jean-Philippe Léveillé",
@@ -17,7 +20,6 @@
         "psy/psysh": "^0.12.7",
         "phpstan/phpstan": "^2.0"
     },
-    "license": "MIT",
     "autoload": {
         "psr-4": {
             "Webgraphe\\Phlux\\": "src/"

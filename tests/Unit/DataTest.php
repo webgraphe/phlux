@@ -8,17 +8,25 @@ use Closure;
 use DateTime;
 use Exception;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Webgraphe\Phlux\Attributes\Discriminator;
 use Webgraphe\Phlux\Attributes\ItemPrototype;
 use Webgraphe\Phlux\Attributes\ItemType;
 use Webgraphe\Phlux\Attributes\Present;
+use Webgraphe\Phlux\Contracts\DataTransferObject;
 use Webgraphe\Phlux\Data;
 use Webgraphe\Phlux\Exceptions\DiscriminatorException;
+use Webgraphe\Phlux\Exceptions\InvalidNamespaceDiscriminatorException;
+use Webgraphe\Phlux\Exceptions\MissingDataDiscriminatorException;
+use Webgraphe\Phlux\Exceptions\UndefinedClassDiscriminatorException;
 use Webgraphe\Phlux\Exceptions\UnknownClassException;
+use Webgraphe\Phlux\Exceptions\UnmappedClassDiscriminatorException;
+use Webgraphe\Phlux\Exceptions\UnmappedValueDiscriminatorException;
 use Webgraphe\Phlux\Exceptions\UnsupportedClassException;
 use Webgraphe\Phlux\Exceptions\UnsupportedPropertyTypeException;
 use Webgraphe\Phlux\Meta;
 use Webgraphe\PhluxTests\Dummies;
+use Webgraphe\PhluxTests\Dummies\Discriminated\AbstractAbstractMappedData;
 
 #[CoversClass(Data::class)]
 #[CoversClass(Meta::class)]
@@ -254,8 +262,19 @@ class DataTest extends UnitTestCase
     public function testMissingDiscriminatorData(): void
     {
         $stub = Dummies\Discriminated\AbstractMappedData::class . '::$type';
-        $this->expectExceptionObject(new DiscriminatorException("$stub's data is missing"));
+        $this->expectExceptionObject(new MissingDataDiscriminatorException($stub));
         Dummies\Discriminated\AbstractMappedData::from([]);
+    }
+
+    /**
+     * @throws DiscriminatorException
+     */
+    public function testUnmappedDiscriminatorData(): void
+    {
+        $stub = Dummies\Discriminated\AbstractMappedData::class . '::$type';
+        $discriminator = 'unmapped';
+        $this->expectExceptionObject(new UnmappedValueDiscriminatorException("$stub=$discriminator"));
+        Dummies\Discriminated\AbstractMappedData::from(['type' => $discriminator]);
     }
 
     /**
@@ -265,10 +284,9 @@ class DataTest extends UnitTestCase
     {
         /** @noinspection PhpUndefinedClassInspection */
         $class = Dummies\Discriminated\Undefined::class;
-        $stub = Dummies\Discriminated\AbstractMappedData::class . '::$type';
         $discriminator = Dummies\Discriminated\AbstractMappedData::undefined;
         $this->expectExceptionObject(
-            new DiscriminatorException("$stub's '$discriminator' maps to undefined class $class"),
+            new UndefinedClassDiscriminatorException($class),
         );
         Dummies\Discriminated\AbstractMappedData::from(['type' => $discriminator]);
     }
@@ -281,7 +299,7 @@ class DataTest extends UnitTestCase
         /** @noinspection PhpUndefinedClassInspection */
         $stub = Dummies\Discriminated\AbstractMappedData::class . '::$type';
         $discriminator = 'unmapped';
-        $this->expectExceptionObject(new DiscriminatorException("$stub's '$discriminator' is not mapped"));
+        $this->expectExceptionObject(new UnmappedValueDiscriminatorException("$stub=$discriminator"));
         Dummies\Discriminated\AbstractMappedData::from(['type' => $discriminator]);
     }
 
@@ -292,11 +310,77 @@ class DataTest extends UnitTestCase
     {
         /** @noinspection PhpUndefinedClassInspection */
         $class = Dummies\Discriminated\Undefined::class;
-        $stub = Dummies\Discriminated\AbstractUnmappedData::class . '::$type';
         $discriminator = 'Undefined';
         $this->expectExceptionObject(
-            new DiscriminatorException("$stub's '$discriminator' resolved to undefined class $class"),
+            new UndefinedClassDiscriminatorException($class),
         );
         Dummies\Discriminated\AbstractUnmappedData::from(['type' => $discriminator]);
+    }
+
+    public function testUnmappedDiscriminatorClassException(): void
+    {
+        /** @noinspection PhpUndefinedClassInspection */
+        $class = Dummies\Discriminated\MappedUnmappedData::class;
+        $this->expectExceptionObject(
+            new UnmappedClassDiscriminatorException($class),
+        );
+        new Dummies\Discriminated\MappedUnmappedData();
+    }
+
+    public function testNewMappedInstanceIsDiscriminated(): void
+    {
+        $dto = new Dummies\Discriminated\MappedLeftData();
+        self::assertEquals(Dummies\Discriminated\AbstractMappedData::left, $dto->type);
+    }
+
+    public function testNewUnmappedInstanceIsDiscriminated(): void
+    {
+        $dto = new Dummies\Discriminated\UnmappedRightData();
+        self::assertEquals(Dummies\Discriminated\AbstractUnmappedData::UnmappedRightData, $dto->type);
+    }
+
+    public function testNewInvalidNamespaceUnmappedInstance(): void
+    {
+        $this->expectExceptionObject(
+            new InvalidNamespaceDiscriminatorException(Dummies\InvalidNamespaceUnmappedData::class)
+        );
+        new Dummies\InvalidNamespaceUnmappedData();
+    }
+
+    /**
+     * @throws DiscriminatorException
+     */
+    public function testDiscriminatorOnNonAbstractClass(): void
+    {
+        $this->expectExceptionObject(new DiscriminatorException('Discriminator MUST be declared on abstract class'));
+        Dummies\NonAbstractDiscriminatedData::from(null);
+    }
+
+    /** @param class-string<DataTransferObject> $class */
+    #[DataProvider('dataProviderInvalidDiscriminatorProperty')]
+    public function testInvalidDiscriminatorProperty(string $class): void
+    {
+        $this->expectExceptionObject(new DiscriminatorException('Discriminator property MUST be a final non-nullable string'));
+        $class::from(null);
+    }
+
+    /**
+     * @throws DiscriminatorException
+     */
+    public function testDiscriminatorPropertyOnNonAttributedClass(): void
+    {
+        $this->expectExceptionObject(new DiscriminatorException('Discriminator property MUST be declared on attributed class'));
+        AbstractAbstractMappedData::from(null);
+    }
+    public static function dataProviderInvalidDiscriminatorProperty(): array
+    {
+        return [
+            [
+                'class' => Dummies\NonFinalDiscriminatedData::class,
+            ],
+            [
+                'class' => Dummies\NonStringDiscriminatedData::class,
+            ],
+        ];
     }
 }

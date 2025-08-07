@@ -21,5 +21,5 @@ abstract readonly class AbstractMappedData extends Data
         self::undefined => Undefined::class,
     ];
 
-    public string $type;
+    final public string $type;
 }

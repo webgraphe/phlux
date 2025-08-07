@@ -24,7 +24,7 @@ initialization, albeit with some caveats:
 
 - A DTO cannot have `static` properties
 - All properties MUST be typed
-- It's still possible to initialized an uninitialized property after construction (albeit in a `protected(set)` manner). 
+- It's still possible to initialize an uninitialized property after construction (albeit in a `protected(set)` manner). 
 
 Property types range from built-in (`int`, `float`, `string`, `bool`, `null`).
 
@@ -34,8 +34,10 @@ arbitrary data. Specify the item type with the `#[ItemType]` attribute passing a
 prototype with the `#[ItemPrototype]` attribute passing the name of a property whose type will be used as the prototype
 of the collection's item (non-`public` properties can used as prototype for that matter).
 
-All properties can be nullable. When the data for a property is missing from a payload, unless a `#[Present]` attribute
-is found on the property indicating to skip initialization, a default value is assigned
+All properties can be nullable by prefixing the type name with a question mark.
+
+When the data for a property is missing from a payload, unless a `#[Present]` attribute
+is found on the property indicating to skip initialization, a default value is assigned:
 
 - `null` when nullable
 - `0` for `int`
@@ -44,14 +46,14 @@ is found on the property indicating to skip initialization, a default value is a
 - `''` for `string`
 - `[]` for `array`
 - `new stdClass` for `object`
-- Current time for anything implementing `DateTimeInterface`
+- Current time for anything implementing `DateTimeInterface` and anything extending `DateTimeImmutable`
 - The first `BackedEnum::cases()` item for `enum`
 - A new instance with `null` payload for anything implementing `DataTransferObject`
 
-Adding the `#[Discriminator]` attribute on a `DataTransferObject` class (usually `abstract`)
+Adding the `#[Discriminator]` attribute on a `DataTransferObject` class (MUST be `abstract`)
 allows for inheritance and polymorphism of DTOs and their properties to hydrate. It must be given the name of a
-non-nullable `string` property on the attributed class containing the discriminator value which can be matched against
-a given mapping or composed with the namespace of the discriminated DTO.
+`final`, non-nullable `string` property on the attributed class containing the discriminator value which can be matched
+against a given mapping or composed with the namespace of the discriminated DTO.
 
 There is no support for Union or Intersection properties.
 
