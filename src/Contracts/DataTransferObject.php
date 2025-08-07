@@ -7,6 +7,7 @@ namespace Webgraphe\Phlux\Contracts;
 use IteratorAggregate;
 use JsonSerializable;
 use stdClass;
+use Webgraphe\Phlux\Meta;
 
 interface DataTransferObject extends JsonSerializable, IteratorAggregate
 {

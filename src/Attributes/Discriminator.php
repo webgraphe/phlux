@@ -9,7 +9,16 @@ use stdClass;
 use Webgraphe\Phlux\Contracts\DataTransferObject;
 use Webgraphe\Phlux\Data;
 use Webgraphe\Phlux\Exceptions\DiscriminatorException;
+use Webgraphe\Phlux\Exceptions\InvalidNamespaceDiscriminatorException;
+use Webgraphe\Phlux\Exceptions\InvalidValueDiscriminatorException;
+use Webgraphe\Phlux\Exceptions\MissingDataDiscriminatorException;
+use Webgraphe\Phlux\Exceptions\UndefinedClassDiscriminatorException;
+use Webgraphe\Phlux\Exceptions\UnmappedClassDiscriminatorException;
+use Webgraphe\Phlux\Exceptions\UnmappedValueDiscriminatorException;
 
+/**
+ * MUST be declared on abstract class
+ */
 #[Attribute(Attribute::TARGET_CLASS)]
 final readonly class Discriminator
 {
@@ -18,6 +27,11 @@ final readonly class Discriminator
      * @param array<string, class-string<Data>>|null $mapping
      */
     public function __construct(public string $propertyName, public ?array $mapping = null) {}
+
+    private static function namespace(string $class): string
+    {
+        return str_replace('/', '\\', dirname(str_replace('\\', '/', $class)));
+    }
 
     /**
      * @return class-string<DataTransferObject>
@@ -28,11 +42,11 @@ final readonly class Discriminator
         $array = $data instanceof stdClass ? get_object_vars($data) : iterator_to_array($data ?? []);
         $stub = "$parent::\$$this->propertyName";
         if (!isset($array[$this->propertyName])) {
-            throw new DiscriminatorException("$stub's data is missing");
+            throw new MissingDataDiscriminatorException($stub);
         }
 
         is_string($discriminator = $array[$this->propertyName])
-        or throw new DiscriminatorException("Discriminator value must be string");
+        or throw new InvalidValueDiscriminatorException($stub);
 
         if ($this->mapping) {
             if (($class = $this->mapping[$discriminator] ?? null)) {
@@ -40,17 +54,38 @@ final readonly class Discriminator
                     return $this->mapping[$discriminator];
                 }
 
-                throw new DiscriminatorException("$stub's '$discriminator' maps to undefined class $class");
+                throw new UndefinedClassDiscriminatorException($class);
             }
 
-            throw new DiscriminatorException("$stub's '$discriminator' is not mapped");
+            throw new UnmappedValueDiscriminatorException("$stub=$discriminator");
         }
 
-        $class = str_replace('/', '\\', dirname(str_replace('\\', '/', $parent)) . '/' . $discriminator);
+        $class = self::namespace($parent) . '\\' . $discriminator;
         if (class_exists($class) and is_subclass_of($class, DataTransferObject::class)) {
             return $class;
         }
 
-        throw new DiscriminatorException("$stub's '$discriminator' resolved to undefined class $class");
+        throw new UndefinedClassDiscriminatorException($class);
+    }
+
+    /**
+     * @throws DiscriminatorException
+     */
+    public function resolveValue(string $class, string $declaringClass): ?string
+    {
+        if ($this->mapping) {
+            if (false !== ($value = array_search($class, $this->mapping, true))) {
+                return $value;
+            }
+
+            throw new UnmappedClassDiscriminatorException($class);
+        }
+
+        $namespace = self::namespace($declaringClass);
+        if (str_starts_with($class, $namespace)) {
+            return substr($class, strlen($namespace) + 1);
+        }
+
+        throw new InvalidNamespaceDiscriminatorException($class);
     }
 }

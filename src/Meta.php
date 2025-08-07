@@ -11,7 +11,6 @@ use DateTimeInterface;
 use Exception;
 use Generator;
 use ReflectionClass;
-use ReflectionException;
 use ReflectionNamedType;
 use ReflectionProperty;
 use ReflectionType;
@@ -23,6 +22,7 @@ use Webgraphe\Phlux\Concerns\EmitsEvents;
 use Webgraphe\Phlux\Contracts\DataTransferObject;
 use Webgraphe\Phlux\Contracts\EventEmitter;
 use Webgraphe\Phlux\Contracts\Unmarshaller;
+use Webgraphe\Phlux\Exceptions\DiscriminatorException;
 use Webgraphe\Phlux\Exceptions\PresentException;
 use Webgraphe\Phlux\Exceptions\UnknownClassException;
 use Webgraphe\Phlux\Exceptions\UnsupportedClassException;
@@ -38,6 +38,7 @@ final class Meta implements EventEmitter
     private static array $reflections = [];
     /** @var array<class-string<DataTransferObject>, Discriminator|null> */
     private static array $discriminators = [];
+    /** @var array<class-string<DataTransferObject>, self> */
     private static array $instances = [];
     private static int $lazy = 0;
 
@@ -99,12 +100,30 @@ final class Meta implements EventEmitter
         return self::$reflections[$this->class] ??= (static fn(string $c) => new ReflectionClass($c))($this->class);
     }
 
+    /**
+     * @throws DiscriminatorException
+     */
     public function getDiscriminator(): ?Discriminator
     {
         if (!array_key_exists($this->class, self::$discriminators)) {
             $discriminated = $this->reflectionClass()->getAttributes(Discriminator::class)[0] ?? null;
-            // TODO Validate property of type string
-            self::$discriminators[$this->class] = $discriminated?->newInstance();
+            /** @var Discriminator|null $discriminator */
+            if (self::$discriminators[$this->class] = $discriminator = $discriminated?->newInstance()) {
+                $property = (fn() => $this->reflectionClass()->getProperty($discriminator->propertyName))();
+                if (!$property->getDeclaringClass()->isAbstract()) {
+                    throw new DiscriminatorException("Discriminator MUST be declared on abstract class");
+                }
+
+                if (!$property->isFinal()
+                    || !(($type = $property->getType()) instanceof ReflectionNamedType)
+                    || 'string' !== $type->getName()
+                    || $type->allowsNull()
+                ) {
+                    throw new DiscriminatorException("Discriminator property MUST be a final non-nullable string");
+                }
+            } elseif ($parent = array_values(class_parents($this->class))[0] ?? null) {
+                self::$discriminators[$this->class] = self::get($parent)->getDiscriminator();
+            }
         }
 
         return self::$discriminators[$this->class];
@@ -116,40 +135,45 @@ final class Meta implements EventEmitter
     }
 
     /**
-     * @throws ReflectionException
+     * @throws DiscriminatorException
      * @throws UnknownClassException
      * @throws UnsupportedClassException
      * @throws UnsupportedPropertyTypeException
      */
     private function propertyUnmarshaller(ReflectionProperty $property): Closure
     {
-        if (!isset($this->unmarshallers[$property->getName()])) {
-            $name = $property->getName();
-            $typeUnmarshaller = $this->typeUnmarshaller(
-                $property->getType(),
-                "$this->class::$name",
-                ($property->getAttributes(ItemPrototype::class)[0] ?? null)?->newInstance(),
-                ($property->getAttributes(ItemType::class)[0] ?? null)?->newInstance(),
-                $property->getDeclaringClass()->getName(),
-            );
-
-            $this->unmarshallers[$property->getName()] = static function (mixed $value = null) use (
-                $property,
-                $typeUnmarshaller,
-            ): mixed {
-                if (!func_num_args() && $property->getAttributes(Present::class)) {
-                    throw new PresentException();
-                }
-
-                return $typeUnmarshaller($value);
-            };
+        if (isset($this->unmarshallers[$name = $property->getName()])) {
+            return $this->unmarshallers[$name];
         }
 
-        return $this->unmarshallers[$property->getName()];
+        if (($discriminator = $this->getDiscriminator())?->propertyName === $name) {
+            $value = $discriminator->resolveValue($this->class, $property->getDeclaringClass()->getName());
+
+            return $this->unmarshallers[$name] = static fn(): ?string => $value;
+        }
+
+        $typeUnmarshaller = $this->typeUnmarshaller(
+            $property->getType(),
+            "$this->class::$name",
+            ($property->getAttributes(ItemPrototype::class)[0] ?? null)?->newInstance(),
+            ($property->getAttributes(ItemType::class)[0] ?? null)?->newInstance(),
+            $property->getDeclaringClass()->getName(),
+        );
+
+        return $this->unmarshallers[$name] = static function (mixed $value = null) use (
+            $property,
+            $typeUnmarshaller,
+        ): mixed {
+            if (!func_num_args() && $property->getAttributes(Present::class)) {
+                throw new PresentException();
+            }
+
+            return $typeUnmarshaller($value);
+        };
     }
 
     /**
-     * @throws ReflectionException
+     * @throws DiscriminatorException
      * @throws UnknownClassException
      * @throws UnsupportedClassException
      * @throws UnsupportedPropertyTypeException
@@ -211,7 +235,8 @@ final class Meta implements EventEmitter
     private static function classUnmarshaller(string $class, ReflectionType $type, string $stub): Closure
     {
         $callable = match (true) {
-            is_a($class, DataTransferObject::class, true) => static fn(mixed $value) => self::$lazy
+            is_a($class, DataTransferObject::class, true) => static fn(mixed $value)
+                => self::$lazy
                 ? $class::lazy($value)
                 : $class::from($value),
             is_a($class, DateTimeImmutable::class, true) => static fn(mixed $value)
@@ -265,7 +290,7 @@ final class Meta implements EventEmitter
     }
 
     /**
-     * @throws ReflectionException
+     * @throws DiscriminatorException
      * @throws UnknownClassException
      * @throws UnsupportedClassException
      * @throws UnsupportedPropertyTypeException
@@ -278,7 +303,7 @@ final class Meta implements EventEmitter
     ): Closure {
         $itemUnmarshaller = match (false) {
             !$itemPrototype => $this->propertyUnmarshaller(
-                $this->reflectionClass()->getProperty($itemPrototype->propertyName),
+                (fn() => $this->reflectionClass()->getProperty($itemPrototype->propertyName))(),
             ),
             !$itemType => $this->typeUnmarshaller($itemType->asReflectionNamedType(), $stub),
             default => static fn(mixed $value): mixed => $value,
