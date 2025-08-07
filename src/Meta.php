@@ -110,8 +110,12 @@ final class Meta implements EventEmitter
             /** @var Discriminator|null $discriminator */
             if (self::$discriminators[$this->class] = $discriminator = $discriminated?->newInstance()) {
                 $property = (fn() => $this->reflectionClass()->getProperty($discriminator->propertyName))();
-                if (!$property->getDeclaringClass()->isAbstract()) {
+                if (!$this->reflectionClass()->isAbstract()) {
                     throw new DiscriminatorException("Discriminator MUST be declared on abstract class");
+                }
+
+                if ($property->getDeclaringClass()->getName() !== $this->class) {
+                    throw new DiscriminatorException("Discriminator property MUST be declared on attributed class");
                 }
 
                 if (!$property->isFinal()
@@ -236,9 +240,7 @@ final class Meta implements EventEmitter
     {
         $callable = match (true) {
             is_a($class, DataTransferObject::class, true) => static fn(mixed $value)
-                => self::$lazy
-                ? $class::lazy($value)
-                : $class::from($value),
+                => self::$lazy ? $class::lazy($value) : $class::from($value),
             is_a($class, DateTimeImmutable::class, true) => static fn(mixed $value)
                 => $value instanceof DateTimeImmutable ? $value : new $class($value ?? 'now'),
             DateTimeInterface::class === $class => static fn(mixed $value)

@@ -26,6 +26,7 @@ use Webgraphe\Phlux\Exceptions\UnsupportedClassException;
 use Webgraphe\Phlux\Exceptions\UnsupportedPropertyTypeException;
 use Webgraphe\Phlux\Meta;
 use Webgraphe\PhluxTests\Dummies;
+use Webgraphe\PhluxTests\Dummies\Discriminated\AbstractAbstractMappedData;
 
 #[CoversClass(Data::class)]
 #[CoversClass(Meta::class)]
@@ -363,6 +364,14 @@ class DataTest extends UnitTestCase
         $class::from(null);
     }
 
+    /**
+     * @throws DiscriminatorException
+     */
+    public function testDiscriminatorPropertyOnNonAttributedClass(): void
+    {
+        $this->expectExceptionObject(new DiscriminatorException('Discriminator property MUST be declared on attributed class'));
+        AbstractAbstractMappedData::from(null);
+    }
     public static function dataProviderInvalidDiscriminatorProperty(): array
     {
         return [
