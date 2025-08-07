@@ -30,7 +30,7 @@ final readonly class Discriminator
 
     private static function namespace(string $class): string
     {
-        return str_replace('/', '\\', dirname(str_replace('\\', '/', $class)));
+        return ($pos = strrpos($class, '\\')) ? substr($class, 0, $pos) : '';
     }
 
     /**
@@ -60,7 +60,7 @@ final readonly class Discriminator
             throw new UnmappedValueDiscriminatorException("$stub=$discriminator");
         }
 
-        $class = self::namespace($parent) . '\\' . $discriminator;
+        $class = ltrim(self::namespace($parent) . '\\' . $discriminator, '\\');
         if (class_exists($class) and is_subclass_of($class, DataTransferObject::class)) {
             return $class;
         }
@@ -83,7 +83,7 @@ final readonly class Discriminator
 
         $namespace = self::namespace($declaringClass);
         if (str_starts_with($class, $namespace)) {
-            return substr($class, strlen($namespace) + 1);
+            return $namespace ? substr($class, strlen($namespace) + 1) : $class;
         }
 
         throw new InvalidNamespaceDiscriminatorException($class);
