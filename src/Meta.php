@@ -107,8 +107,8 @@ final class Meta implements EventEmitter
     {
         if (!array_key_exists($this->class, self::$discriminators)) {
             $discriminated = $this->reflectionClass()->getAttributes(Discriminator::class)[0] ?? null;
-            /** @var Discriminator|null $discriminator */
             if (self::$discriminators[$this->class] = $discriminator = $discriminated?->newInstance()) {
+                /** @var Discriminator|null $discriminator */
                 $property = (fn() => $this->reflectionClass()->getProperty($discriminator->propertyName))();
                 if (!$this->reflectionClass()->isAbstract()) {
                     throw new DiscriminatorException("Discriminator MUST be declared on abstract class");
@@ -153,7 +153,7 @@ final class Meta implements EventEmitter
         if (($discriminator = $this->getDiscriminator())?->propertyName === $name) {
             $value = $discriminator->resolveValue($this->class, $property->getDeclaringClass()->getName());
 
-            return $this->unmarshallers[$name] = static fn(): ?string => $value;
+            return $this->unmarshallers[$name] = static fn(): string => $value;
         }
 
         $typeUnmarshaller = $this->typeUnmarshaller(

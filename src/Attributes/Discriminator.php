@@ -71,7 +71,7 @@ final readonly class Discriminator
     /**
      * @throws DiscriminatorException
      */
-    public function resolveValue(string $class, string $declaringClass): ?string
+    public function resolveValue(string $class, string $declaringClass): string
     {
         if ($this->mapping) {
             if (false !== ($value = array_search($class, $this->mapping, true))) {
