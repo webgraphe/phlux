@@ -372,6 +372,7 @@ class DataTest extends UnitTestCase
         $this->expectExceptionObject(new DiscriminatorException('Discriminator property MUST be declared on attributed class'));
         AbstractAbstractMappedData::from(null);
     }
+
     public static function dataProviderInvalidDiscriminatorProperty(): array
     {
         return [
@@ -382,5 +383,18 @@ class DataTest extends UnitTestCase
                 'class' => Dummies\NonStringDiscriminatedData::class,
             ],
         ];
+    }
+
+    public function testInstantiate(): Dummies\TestData
+    {
+        $instance = Dummies\TestData::instantiate(
+            function (): void {
+                /** @noinspection PhpDynamicFieldDeclarationInspection */
+                $this->name = 'instantiated';
+            }
+        );
+        self::assertEquals('instantiated', $instance->name);
+
+        return $instance;
     }
 }
