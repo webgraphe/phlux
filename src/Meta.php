@@ -286,7 +286,7 @@ final class Meta implements EventEmitter
         $allowsNull = $type->allowsNull();
         $name = $type->getName();
 
-        return function (mixed $value) use ($allowsNull, $name): mixed {
+        return static function (mixed $value) use ($allowsNull, $name): mixed {
             if ($allowsNull && null === $value) {
                 return null;
             }
@@ -332,7 +332,7 @@ final class Meta implements EventEmitter
         $allowsNull = $type->allowsNull();
         $name = $type->getName();
 
-        return function (mixed $value) use ($allowsNull, $itemUnmarshaller, $name) {
+        return static function (mixed $value) use ($allowsNull, $itemUnmarshaller, $name) {
             if ($allowsNull && null === $value) {
                 return null;
             }

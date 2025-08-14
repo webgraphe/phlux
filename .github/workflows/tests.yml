@@ -26,4 +26,4 @@ jobs:
       - name: Execute Tests
         run: composer ci-tests-with-coverage
       - name: Run Static Analysis
-        run: composer ci-stan
+        run: composer ci-static-analysis

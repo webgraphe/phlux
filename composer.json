@@ -37,7 +37,7 @@
         "ci-tests-with-coverage": [
             "php -dxdebug.mode=coverage vendor/bin/phpunit --fail-on-all-issues --testsuite \"CI\" --coverage-text"
         ],
-        "ci-stan": [
+        "ci-static-analysis": [
             "vendor/bin/phpstan --configuration=phpstan.src.neon.dist --no-progress"
         ]
     },
