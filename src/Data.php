@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace Webgraphe\Phlux;
 
-use Closure;
-use ReflectionProperty;
 use stdClass;
 use Traversable;
 use Webgraphe\Phlux\Contracts\DataTransferObject;
@@ -47,6 +45,11 @@ abstract readonly class Data implements DataTransferObject
                 Meta::lazy(static fn() => $instance->__construct($data));
             },
         );
+    }
+
+    final public static function isLazy(self $instance): bool
+    {
+        return Meta::get($instance::class)->reflectionClass()->isUninitializedLazyObject($instance);
     }
 
     /**
