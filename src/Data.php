@@ -7,6 +7,7 @@ namespace Webgraphe\Phlux;
 use stdClass;
 use Traversable;
 use Webgraphe\Phlux\Contracts\DataTransferObject;
+use Webgraphe\Phlux\Contracts\Initializer;
 use Webgraphe\Phlux\Exceptions\DiscriminatorException;
 use Webgraphe\Phlux\Exceptions\PresentException;
 
@@ -39,11 +40,16 @@ abstract readonly class Data implements DataTransferObject
          * @noinspection PhpIncompatibleReturnTypeInspection
          * @phpstan-ignore return.type
          */
-        return static::discriminatedMeta($data)->reflectionClass()->newLazyGhost(
+        return self::discriminatedMeta(static::meta(), $data)->reflectionClass()->newLazyGhost(
             function (self $instance) use ($data) {
                 Meta::lazy(static fn() => $instance->__construct($data));
             },
         );
+    }
+
+    final public static function isLazy(self $instance): bool
+    {
+        return Meta::get($instance::class)->reflectionClass()->isUninitializedLazyObject($instance);
     }
 
     /**
@@ -52,17 +58,17 @@ abstract readonly class Data implements DataTransferObject
     final public static function from(iterable|stdClass|null $data): static
     {
         // @phpstan-ignore return.type
-        return new (static::discriminatedMeta($data)->class)($data);
+        return new (self::discriminatedMeta(static::meta(), $data)->class)($data);
     }
 
     /**
      * @throws DiscriminatorException
      */
-    public static function discriminatedMeta(iterable|stdClass|null $data): Meta
+    private static function discriminatedMeta(Meta $meta, iterable|stdClass|null $data): Meta
     {
-        return ($discriminator = static::meta()->getDiscriminator())
-            ? Meta::get($discriminator->resolveClass($data, static::class))
-            : static::meta();
+        return ($discriminator = $meta->getDiscriminator())
+            ? Meta::get($discriminator->resolveClass($data, $meta->class))
+            : $meta;
     }
 
     public static function meta(): Meta
@@ -84,5 +90,28 @@ abstract readonly class Data implements DataTransferObject
     {
         // Using Meta to return public vars only
         yield from static::meta()->vars($this);
+    }
+
+    /**
+     * @param Initializer|callable(): void $initializer
+     * @return static
+     */
+    public static function instantiate(Initializer|callable $initializer): static
+    {
+        $reflection = static::meta()->reflectionClass();
+        /** @var static $instance */
+        $instance = (static fn() => $reflection->newInstanceWithoutConstructor())();
+        $initializer(...)->call($instance);
+        $properties = static::meta()->reflectionProperties();
+        foreach (static::meta()->unmarshallers() as $name => $unmarshaller) {
+            if (!$properties[$name]->isInitialized($instance)) {
+                try {
+                    $instance->$name = $unmarshaller();
+                } catch (PresentException) {
+                }
+            }
+        }
+
+        return $instance;
     }
 }

@@ -162,14 +162,13 @@ class DataTest extends UnitTestCase
     public function testLazy(): void
     {
         $dto = Dummies\TestData::lazy(['data' => ['int' => 42]]);
-        $reflection = Dummies\TestData::meta()->reflectionClass();
-        self::assertTrue($reflection->isUninitializedLazyObject($dto));
+        self::assertTrue(Data::isLazy($dto));
         $data = $dto->data;
-        self::assertFalse($reflection->isUninitializedLazyObject($dto));
+        self::assertFalse(Data::isLazy($dto));
 
-        self::assertTrue($reflection->isUninitializedLazyObject($data));
+        self::assertTrue(Data::isLazy($data));
         self::assertEquals(42, $data->int);
-        self::assertFalse($reflection->isUninitializedLazyObject($data));
+        self::assertFalse(Data::isLazy($data));
     }
 
     public function testUnion(): void
@@ -372,6 +371,7 @@ class DataTest extends UnitTestCase
         $this->expectExceptionObject(new DiscriminatorException('Discriminator property MUST be declared on attributed class'));
         AbstractAbstractMappedData::from(null);
     }
+
     public static function dataProviderInvalidDiscriminatorProperty(): array
     {
         return [
@@ -382,5 +382,18 @@ class DataTest extends UnitTestCase
                 'class' => Dummies\NonStringDiscriminatedData::class,
             ],
         ];
+    }
+
+    public function testInstantiate(): Dummies\TestData
+    {
+        $instance = Dummies\TestData::instantiate(
+            function (): void {
+                /** @noinspection PhpDynamicFieldDeclarationInspection */
+                $this->name = 'instantiated';
+            }
+        );
+        self::assertEquals('instantiated', $instance->name);
+
+        return $instance;
     }
 }

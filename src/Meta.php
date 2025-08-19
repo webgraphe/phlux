@@ -101,19 +101,32 @@ final class Meta implements EventEmitter
     }
 
     /**
+     * @return array<string, ReflectionProperty>
+     */
+    public function reflectionProperties(): array
+    {
+        return array_combine(
+            array_map(
+                static fn(ReflectionProperty $property): string => $property->getName(),
+                $properties = self::reflectionClass()->getProperties(ReflectionProperty::IS_PUBLIC)
+            ),
+            $properties
+        );
+    }
+
+    /**
      * @throws DiscriminatorException
      */
     public function getDiscriminator(): ?Discriminator
     {
         if (!array_key_exists($this->class, self::$discriminators)) {
             $discriminated = $this->reflectionClass()->getAttributes(Discriminator::class)[0] ?? null;
-            if (self::$discriminators[$this->class] = $discriminator = $discriminated?->newInstance()) {
-                /** @var Discriminator|null $discriminator */
-                $property = (fn() => $this->reflectionClass()->getProperty($discriminator->propertyName))();
+            if ($discriminator = $discriminated?->newInstance()) {
                 if (!$this->reflectionClass()->isAbstract()) {
                     throw new DiscriminatorException("Discriminator MUST be declared on abstract class");
                 }
 
+                $property = (fn() => $this->reflectionClass()->getProperty($discriminator->propertyName))();
                 if ($property->getDeclaringClass()->getName() !== $this->class) {
                     throw new DiscriminatorException("Discriminator property MUST be declared on attributed class");
                 }
@@ -125,8 +138,13 @@ final class Meta implements EventEmitter
                 ) {
                     throw new DiscriminatorException("Discriminator property MUST be a final non-nullable string");
                 }
+
+                /** @var Discriminator|null $discriminator */
+                self::$discriminators[$this->class] = $discriminator;
             } elseif ($parent = array_values(class_parents($this->class))[0] ?? null) {
                 self::$discriminators[$this->class] = self::get($parent)->getDiscriminator();
+            } else {
+                self::$discriminators[$this->class] = null;
             }
         }
 
@@ -268,7 +286,7 @@ final class Meta implements EventEmitter
         $allowsNull = $type->allowsNull();
         $name = $type->getName();
 
-        return function (mixed $value) use ($allowsNull, $name): mixed {
+        return static function (mixed $value) use ($allowsNull, $name): mixed {
             if ($allowsNull && null === $value) {
                 return null;
             }
@@ -314,7 +332,7 @@ final class Meta implements EventEmitter
         $allowsNull = $type->allowsNull();
         $name = $type->getName();
 
-        return function (mixed $value) use ($allowsNull, $itemUnmarshaller, $name) {
+        return static function (mixed $value) use ($allowsNull, $itemUnmarshaller, $name) {
             if ($allowsNull && null === $value) {
                 return null;
             }

@@ -5,13 +5,13 @@ A DTO (Data Transfer Object) is a simple object holding data.
 - It MUST be easy to understand
 - It MUST present and allow data transport in the simplest way
 - It MUST not contain business logic
-- It SHOULD be immutable, _i.e._ immune to modifications
+- It SHOULD be immutable, _i.e._ its state should not change after it is created
 
 This is Phlux.
 
 ## Declaration
 
-A Phlux DTO is strictly declared using PHP language constructs.
+A Phlux DTO is strictly declared using PHP language constructs; there is no magic.
 
 One can extend the `readonly` class `Data` or implement `DataTransferObject`
 which in on itself is `JsonSerializable` and `IteratorAggregate`.
@@ -37,7 +37,7 @@ of the collection's item (non-`public` properties can used as prototype for that
 All properties can be nullable by prefixing the type name with a question mark.
 
 When the data for a property is missing from a payload, unless a `#[Present]` attribute
-is found on the property indicating to skip initialization, a default value is assigned:
+is found on the property (indicating to skip initialization), a default value is assigned:
 
 - `null` when nullable
 - `0` for `int`
@@ -50,6 +50,8 @@ is found on the property indicating to skip initialization, a default value is a
 - The first `BackedEnum::cases()` item for `enum`
 - A new instance with `null` payload for anything implementing `DataTransferObject`
 
+Uninitialized properties are not exported to JSON.
+
 Adding the `#[Discriminator]` attribute on a `DataTransferObject` class (MUST be `abstract`)
 allows for inheritance and polymorphism of DTOs and their properties to hydrate. It must be given the name of a
 `final`, non-nullable `string` property on the attributed class containing the discriminator value which can be matched
@@ -61,14 +63,19 @@ There is no support for Union or Intersection properties.
 
 DTOs may be hydrated in different ways:
 
-- Using the exception safe constructor `__construct()`
+- Using the exception-safe constructor `__construct()`
 - Using the static `from()` method
 - Using the static `lazy()` method, which creates a lazy object whose initialization is deferred until its state is
   observed or modified
 
-All the methods above accept anything that can be passed to `iterator_to_array()`, _i.e._ `iterable` (including `array`,
+Hydrating methods above accept anything that can be passed to `iterator_to_array()` _i.e._ `iterable` (including `array`,
 `ArrayObject` and `DataTransferObject` itself), `stdClass`, or any SPL data structure; freshly decoded JSON can
-immediately be passed to any of them to hydrate a DTO.
+immediately be passed to any of them to hydrate a DTO, with associative arrays or objects.
+
+To create new DTOs, static `instantiate(callable)` method may be used _in lieu_ of `__construct()`. It accepts a
+`callable` bound to a new instance and invoked before executing default value unmarshallers on uninitialized `public`
+properties. It behaves like the constructor of a `readonly` object, _i.e._ once a property is initialized, it can no
+longer be changed.
 
 ```php
 <?php
@@ -79,15 +86,30 @@ readonly class Person extends Webgraphe\Phlux\Data
     public string $lastName;
 }
 
-$json = '{"firstName":"John","lastName":"Doe"}';
-// Passing JSON-decoded data (a stdClass instance)
-$johnDoe = new Person(json_decode($json));
-// Passing another DTO
+// in-lieu of the constructor, creating with instantiate()
+$johnDoe = Person::instantiate(
+    function () {
+        $this->firstName = 'John';
+        $this->lastName = 'Doe';
+    }
+);
+
+// Creating from an existing DTO
 $johnDoeClone = Person::from($johnDoe);
-// A lazy-object hydrated from an associative array
-$lazyJohnDoe = Person::lazy(json_decode($json, true));
-// Object initializes its properties ONLY when reading them 
-echo $lazyPerson->firstName; // prints "John"
-// Encoding back to JSON
+
+// Encoding to JSON
 $json = json_encode($johnDoe);
+
+// Creating from decoded JSON
+$johnDoeDeepClone = Person::from(json_decode($johnDoe));
+
+// Creating as lazy-object, hydrated from an associative array
+$lazyJohnDoe = Person::lazy(json_decode($json, true));
+
+var_dump(Webgraphe\Phlux\Data::isLazy($lazyJohnDoe)); // true
+
+// Object initializes its properties ONLY when reading them 
+echo $lazyJohnDoe->firstName; // prints "John"
+
+var_dump(Webgraphe\Phlux\Data::isLazy($lazyJohnDoe)); // false; it's now initialized
 ```
