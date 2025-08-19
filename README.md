@@ -61,20 +61,21 @@ There is no support for Union or Intersection properties.
 
 ## Instantiation
 
-Static `instantiate(callable)` method may be used _in lieu_ of a `__construct()`. It accepts a callable bound to a new
-instance and invoked before executing default value unmarshallers on uninitialized `public` properties. It behaves like
-the constructor of a readonly object, i.e. once a property is initialized, it can no longer be changed.
-
 DTOs may be hydrated in different ways:
 
-- Using the exception safe constructor `__construct()`
+- Using the exception-safe constructor `__construct()`
 - Using the static `from()` method
 - Using the static `lazy()` method, which creates a lazy object whose initialization is deferred until its state is
   observed or modified
 
 Hydrating methods above accept anything that can be passed to `iterator_to_array()` _i.e._ `iterable` (including `array`,
 `ArrayObject` and `DataTransferObject` itself), `stdClass`, or any SPL data structure; freshly decoded JSON can
-immediately be passed to any of them to hydrate a DTO, with or without array associativity.
+immediately be passed to any of them to hydrate a DTO, with associative arrays or objects.
+
+To create new DTOs, static `instantiate(callable)` method may be used _in lieu_ of `__construct()`. It accepts a
+`callable` bound to a new instance and invoked before executing default value unmarshallers on uninitialized `public`
+properties. It behaves like the constructor of a `readonly` object, _i.e._ once a property is initialized, it can no
+longer be changed.
 
 ```php
 <?php
