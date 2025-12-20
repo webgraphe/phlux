@@ -6,9 +6,11 @@ namespace Webgraphe\PhluxTests\Unit;
 
 use Closure;
 use DateTime;
+use Error;
 use Exception;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Depends;
 use Webgraphe\Phlux\Attributes\Discriminator;
 use Webgraphe\Phlux\Attributes\ItemPrototype;
 use Webgraphe\Phlux\Attributes\ItemType;
@@ -61,7 +63,7 @@ class DataTest extends UnitTestCase
     /**
      * @throws Exception
      */
-    public function testScalars(): void
+    public function testScalars(): Dummies\TestData
     {
         $dto = new Dummies\TestData(
             $innerDto = new Dummies\TestData(
@@ -90,6 +92,45 @@ class DataTest extends UnitTestCase
         $expected = [...$data, 'array' => [], 'object' => null];
         self::assertEquals($expected, $dto->toArray());
         self::assertEquals($expected, $innerDto->toArray());
+
+        return $dto;
+    }
+
+    #[Depends('testScalars')]
+    public function testArrayAccess(Dummies\TestData $dto): void
+    {
+        self::assertTrue(isset($dto['name']));
+        self::assertEquals('test', $dto['name']);
+        self::assertEquals(42, $dto['int']);
+        self::assertTrue($dto['bool']);
+        self::assertEquals(M_PI, $dto['float']);
+        self::assertEquals('hello', $dto['nullableString']);
+        self::assertFalse(isset($dto['strings']));
+        self::assertFalse(isset($dto['nullableStringMap']));
+        self::assertFalse(isset($dto['stringsArray']));
+        self::assertFalse(isset($dto['data']));
+    }
+
+    #[Depends('testScalars')]
+    public function testOffsetExists(Dummies\TestData $dto): void
+    {
+        self::assertFalse(isset($dto['not defined']));
+    }
+
+    #[Depends('testScalars')]
+    public function testOffsetSet(Dummies\TestData $dto): void
+    {
+        $this->expectException(Error::class);
+
+        $dto['name'] = 'test';
+    }
+
+    #[Depends('testScalars')]
+    public function testOffsetUnset(Dummies\TestData $dto): void
+    {
+        $this->expectException(Error::class);
+
+        unset($dto['name']);
     }
 
     /**

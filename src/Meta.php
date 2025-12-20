@@ -11,6 +11,7 @@ use DateTimeInterface;
 use Exception;
 use Generator;
 use ReflectionClass;
+use ReflectionException;
 use ReflectionNamedType;
 use ReflectionProperty;
 use ReflectionType;
@@ -342,5 +343,15 @@ final class Meta implements EventEmitter
 
             return 'array' === $name ? array_values($value) : $value;
         };
+    }
+
+    public function hasInitializedProperty(DataTransferObject $object, string $name): bool
+    {
+        try {
+            $property = $this->reflectionClass()->getProperty($name);
+            return $property->isPublic() && $property->isInitialized($object);
+        } catch (ReflectionException) {
+            return false;
+        }
     }
 }
