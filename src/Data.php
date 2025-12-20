@@ -71,22 +71,22 @@ abstract readonly class Data implements DataTransferObject
             : $meta;
     }
 
-    public static function meta(): Meta
+    final public static function meta(): Meta
     {
         return Meta::get(static::class);
     }
 
-    public function jsonSerialize(): object
+    final public function jsonSerialize(): object
     {
         return (object)iterator_to_array(static::meta()->marshal($this));
     }
 
-    public function toArray(): array
+    final public function toArray(): array
     {
         return json_decode(json_encode($this), true);
     }
 
-    public function getIterator(): Traversable
+    final public function getIterator(): Traversable
     {
         // Using Meta to return public vars only
         yield from static::meta()->vars($this);
@@ -96,7 +96,7 @@ abstract readonly class Data implements DataTransferObject
      * @param Initializer|callable(): void $initializer
      * @return static
      */
-    public static function instantiate(Initializer|callable $initializer): static
+    final public static function instantiate(Initializer|callable $initializer): static
     {
         $reflection = static::meta()->reflectionClass();
         /** @var static $instance */
@@ -113,5 +113,25 @@ abstract readonly class Data implements DataTransferObject
         }
 
         return $instance;
+    }
+
+    final public function offsetExists(mixed $offset): bool
+    {
+        return static::meta()->hasInitializedProperty($this, (string)$offset);
+    }
+
+    final public function offsetGet(mixed $offset): mixed
+    {
+        return $this->$offset;
+    }
+
+    final public function offsetSet(mixed $offset, mixed $value): void
+    {
+        $this->$offset = $value;
+    }
+
+    final public function offsetUnset(mixed $offset): void
+    {
+        unset($this->$offset);
     }
 }
