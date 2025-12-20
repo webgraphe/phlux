@@ -300,11 +300,11 @@ final class Meta implements EventEmitter
     private static function arrayize(mixed $value): mixed
     {
         return match (true) {
-            $value instanceof DataTransferObject => $value->toArray() ?: (object)[],
+            $value instanceof DataTransferObject => (object)$value->toArray(),
             $value instanceof BackedEnum => $value->value,
             $value instanceof DateTimeInterface => $value->format('Y-m-d H:i:s e'),
             is_array($value) => array_map(self::arrayize(...), $value),
-            is_object($value) => array_map(self::arrayize(...), get_object_vars($value)) ?: (object)[],
+            is_object($value) => (object)array_map(self::arrayize(...), get_object_vars($value)),
             default => $value,
         };
     }
