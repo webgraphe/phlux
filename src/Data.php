@@ -76,14 +76,14 @@ abstract readonly class Data implements DataTransferObject
         return Meta::get(static::class);
     }
 
-    public function jsonSerialize(): array
+    public function jsonSerialize(): object
     {
-        return $this->toArray();
+        return (object)iterator_to_array(static::meta()->marshal($this));
     }
 
     public function toArray(): array
     {
-        return iterator_to_array(static::meta()->marshal($this));
+        return json_decode(json_encode($this), true);
     }
 
     public function getIterator(): Traversable

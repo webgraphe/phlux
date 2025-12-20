@@ -26,6 +26,7 @@ use Webgraphe\Phlux\Exceptions\UnsupportedClassException;
 use Webgraphe\Phlux\Exceptions\UnsupportedPropertyTypeException;
 use Webgraphe\Phlux\Meta;
 use Webgraphe\PhluxTests\Dummies;
+use Webgraphe\PhluxTests\Dummies\Bare;
 use Webgraphe\PhluxTests\Dummies\Discriminated\AbstractAbstractMappedData;
 
 #[CoversClass(Data::class)]
@@ -395,5 +396,11 @@ class DataTest extends UnitTestCase
         self::assertEquals('instantiated', $instance->name);
 
         return $instance;
+    }
+
+    public function testBare(): void
+    {
+        $bare = new Bare();
+        self::assertJsonStringEqualsJsonString('{}', json_encode($bare));
     }
 }
