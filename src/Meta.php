@@ -46,6 +46,9 @@ final class Meta implements EventEmitter
     /** @var array<string, Closure> Associated by property name */
     private array $unmarshallers = [];
 
+    /**
+     * @param class-string<DataTransferObject> $class
+     */
     private function __construct(public readonly string $class) {}
 
     public static function lazy(callable $callable, mixed ...$args): mixed
@@ -98,21 +101,8 @@ final class Meta implements EventEmitter
 
     public function reflectionClass(): ReflectionClass
     {
-        return self::$reflections[$this->class] ??= (static fn(string $c) => new ReflectionClass($c))($this->class);
-    }
-
-    /**
-     * @return array<string, ReflectionProperty>
-     */
-    public function reflectionProperties(): array
-    {
-        return array_combine(
-            array_map(
-                static fn(ReflectionProperty $property): string => $property->getName(),
-                $properties = self::reflectionClass()->getProperties(ReflectionProperty::IS_PUBLIC)
-            ),
-            $properties
-        );
+        return self::$reflections[$this->class]
+            ??= (static fn(string $c): ReflectionClass => new ReflectionClass($c))($this->class);
     }
 
     /**
@@ -277,7 +267,10 @@ final class Meta implements EventEmitter
 
         $allowsNull = $type->allowsNull();
 
-        return function (mixed $value) use ($allowsNull, $callable): mixed {
+        return function (mixed $value) use (
+            $allowsNull,
+            $callable,
+        ): DataTransferObject|DateTimeImmutable|BackedEnum|null {
             return (null === $value) && $allowsNull ? null : $callable($value);
         };
     }

@@ -11,7 +11,7 @@ use stdClass;
 
 interface DataTransferObject extends ArrayAccess, JsonSerializable, IteratorAggregate
 {
-    public function __construct(iterable|stdClass|null $data = null);
+    public static function instantiate(mixed ...$arguments): static;
 
     public static function lazy(iterable|stdClass|null $data): static;
 

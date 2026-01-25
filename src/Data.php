@@ -7,7 +7,6 @@ namespace Webgraphe\Phlux;
 use stdClass;
 use Traversable;
 use Webgraphe\Phlux\Contracts\DataTransferObject;
-use Webgraphe\Phlux\Contracts\Initializer;
 use Webgraphe\Phlux\Exceptions\DiscriminatorException;
 use Webgraphe\Phlux\Exceptions\PresentException;
 
@@ -18,17 +17,20 @@ use Webgraphe\Phlux\Exceptions\PresentException;
  */
 abstract readonly class Data implements DataTransferObject
 {
-    final public function __construct(iterable|stdClass|null $data = null)
+    private static function hydrate(self $instance, iterable|stdClass|null $data = null): static
     {
         $array = $data instanceof stdClass ? get_object_vars($data) : iterator_to_array($data ?? []);
+
         foreach (static::meta()->unmarshallers() as $name => $unmarshaller) {
             try {
-                $this->$name = array_key_exists($name, $array)
+                $instance->$name = array_key_exists($name, $array)
                     ? $unmarshaller($array[$name])
                     : $unmarshaller();
             } catch (PresentException) {
             }
         }
+
+        return $instance;
     }
 
     /**
@@ -42,7 +44,7 @@ abstract readonly class Data implements DataTransferObject
          */
         return self::discriminatedMeta(static::meta(), $data)->reflectionClass()->newLazyGhost(
             function (self $instance) use ($data) {
-                Meta::lazy(static fn() => $instance->__construct($data));
+                Meta::lazy(static fn(): static => static::hydrate($instance, $data));
             },
         );
     }
@@ -57,8 +59,11 @@ abstract readonly class Data implements DataTransferObject
      */
     final public static function from(iterable|stdClass|null $data): static
     {
+        $array = $data instanceof stdClass ? get_object_vars($data) : iterator_to_array($data ?? []);
+
         // @phpstan-ignore return.type
-        return new (self::discriminatedMeta(static::meta(), $data)->class)($data);
+        /** @noinspection PhpIncompatibleReturnTypeInspection Not returning a class-string<DataTransferObject> */
+        return self::discriminatedMeta(static::meta(), $data)->class::instantiate(...$array);
     }
 
     /**
@@ -92,27 +97,16 @@ abstract readonly class Data implements DataTransferObject
         yield from static::meta()->vars($this);
     }
 
-    /**
-     * @param Initializer|callable(): void $initializer
-     * @return static
-     */
-    final public static function instantiate(Initializer|callable $initializer): static
+    final public static function instantiate(mixed ...$arguments): static
     {
         $reflection = static::meta()->reflectionClass();
-        /** @var static $instance */
-        $instance = (static fn() => $reflection->newInstanceWithoutConstructor())();
-        $initializer(...)->call($instance);
-        $properties = static::meta()->reflectionProperties();
-        foreach (static::meta()->unmarshallers() as $name => $unmarshaller) {
-            if (!$properties[$name]->isInitialized($instance)) {
-                try {
-                    $instance->$name = $unmarshaller();
-                } catch (PresentException) {
-                }
-            }
-        }
+        /**
+         * @var static $instance
+         * @noinspection PhpUnhandledExceptionInspection
+         */
+        $instance = $reflection->newInstanceWithoutConstructor();
 
-        return $instance;
+        return static::hydrate($instance, $arguments);
     }
 
     final public function offsetExists(mixed $offset): bool
