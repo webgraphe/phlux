@@ -228,11 +228,13 @@ final class Meta implements EventEmitter
      * @throws UnknownClassException
      * @throws UnsupportedClassException
      */
-    private static function supportedClass(string $class, ?string $declaringClass = null): string
+    private static function supportedClass(string $class, ?string $declaringClass): string
     {
         $declaringClass ??= $class;
         if ('self' === $class) {
+            // @codeCoverageIgnoreStart
             $class = $declaringClass;
+            // @codeCoverageIgnoreEnd
         }
 
         if (!class_exists($class) && !interface_exists($class)) {
