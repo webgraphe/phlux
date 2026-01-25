@@ -1,20 +1,38 @@
 services:
-    php-cli:
-        container_name: phlux-php-cli
-        build:
-            context: .
-            dockerfile: .docker/php-cli/Dockerfile
-        volumes:
-            - .:/opt/project
-        cap_add:
-            - SYS_PTRACE
-        command: "/usr/bin/tail -f /dev/null"
-        networks:
-            - bridge-network
-            - phlux-network
+  php-cli84:
+    container_name: phlux-php-cli84
+    build:
+      context: .
+      dockerfile: .docker/php-cli/Dockerfile
+      args:
+        PHP_VERSION: 8.4
+    volumes:
+      - .:/opt/project
+    cap_add:
+      - SYS_PTRACE
+    command: "/usr/bin/tail -f /dev/null"
+    networks:
+      - bridge-network
+      - phlux-network
+
+  php-cli85:
+    container_name: phlux-php-cli85
+    build:
+      context: .
+      dockerfile: .docker/php-cli/Dockerfile
+      args:
+        PHP_VERSION: 8.5
+    volumes:
+      - .:/opt/project
+    cap_add:
+      - SYS_PTRACE
+    command: "/usr/bin/tail -f /dev/null"
+    networks:
+      - bridge-network
+      - phlux-network
 
 networks:
-    bridge-network:
-        driver: bridge
-    phlux-network:
-        external: true
+  bridge-network:
+    driver: bridge
+  phlux-network:
+    external: true

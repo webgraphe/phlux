@@ -1,7 +1,9 @@
+ARG PHP_VERSION=8.4
+
 FROM mlocati/php-extension-installer:latest AS php-ext-installer
 FROM composer:2 AS composer
 
-FROM php:8.4-cli
+FROM php:${PHP_VERSION}-cli
 
 RUN pecl install xdebug \
     && docker-php-ext-enable xdebug
