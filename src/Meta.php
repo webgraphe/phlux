@@ -102,7 +102,6 @@ final class Meta implements EventEmitter
     public function reflectionClass(): ReflectionClass
     {
         return self::$reflections[$this->class]
-            // @phpstan-ignore return.type
             ??= (static fn(string $c): ReflectionClass => new ReflectionClass($c))($this->class);
     }
 
