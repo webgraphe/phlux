@@ -12,7 +12,7 @@ use Webgraphe\Phlux\Attributes\Present;
 
 readonly class TestData extends IdentityData
 {
-    public ?string $nullableString;
+    public string|null $nullableString;
     public bool $bool;
     public int $int;
     public float $float;
