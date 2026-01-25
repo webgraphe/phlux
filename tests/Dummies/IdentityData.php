@@ -9,6 +9,7 @@ use Webgraphe\Phlux\Data;
 
 readonly class IdentityData extends Data
 {
-    #[Present]
-    public string $name;
+    public function __construct(
+        #[Present] public string $name,
+    ) {}
 }

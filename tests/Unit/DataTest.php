@@ -56,8 +56,11 @@ class DataTest extends UnitTestCase
 
     public function testIdentity(): void
     {
-        $dto = new Dummies\IdentityData();
+        $dto = new Dummies\IdentityData('');
+        self::assertEquals(['name' => ''], $dto->toArray());
+        $dto = Dummies\IdentityData::instantiate();
         self::assertEquals([], $dto->toArray());
+        self::assertFalse(isset($dto->name));
     }
 
     /**
@@ -65,8 +68,8 @@ class DataTest extends UnitTestCase
      */
     public function testScalars(): Dummies\TestData
     {
-        $dto = new Dummies\TestData(
-            $innerDto = new Dummies\TestData(
+        $dto = Dummies\TestData::from(
+            $innerDto = Dummies\TestData::from(
                 json_decode(
                     json_encode(
                         $data = [
@@ -138,8 +141,8 @@ class DataTest extends UnitTestCase
      */
     public function testComposites(): void
     {
-        $dto = new Dummies\TestData(
-            $innerDto = new Dummies\TestData(
+        $dto = Dummies\TestData::from(
+            $innerDto = Dummies\TestData::from(
                 json_decode(
                     json_encode(
                         $data = [
@@ -164,7 +167,7 @@ class DataTest extends UnitTestCase
         self::assertEquals(['foo', 'bar'], $dto->strings);
         self::assertEquals((object)['hello' => 'world'], $dto->nullableStringMap);
         self::assertEquals([['a', 'b'], ['c', 'd']], $dto->stringsArray);
-        self::assertEquals(new Dummies\TestData(['int' => 42]), $dto->data);
+        self::assertEquals(Dummies\TestData::from(['int' => 42]), $dto->data);
         self::assertEquals(
             $expected = [
                 ...$data,
@@ -193,8 +196,8 @@ class DataTest extends UnitTestCase
      */
     public function testJson(): void
     {
-        $json = json_encode($dto = new Dummies\TestData(null));
-        $fromJson = new Dummies\TestData(json_decode($json));
+        $json = json_encode($dto = Dummies\TestData::from(null));
+        $fromJson = Dummies\TestData::from(json_decode($json));
         self::assertEquals($dto->toArray(), $fromJson->toArray());
     }
 
@@ -217,7 +220,7 @@ class DataTest extends UnitTestCase
     {
         $this->expectExceptionObject(new UnsupportedPropertyTypeException('number'));
 
-        new Dummies\UnionData();
+        Dummies\UnionData::instantiate();
     }
 
     public function testUndefinedClass(): void
@@ -225,7 +228,7 @@ class DataTest extends UnitTestCase
         /** @noinspection PhpUndefinedClassInspection */
         $this->expectExceptionObject(new UnknownClassException(Dummies\Unknown::class));
 
-        new Dummies\UnknownClassData();
+        Dummies\UnknownClassData::instantiate();
     }
 
     public function testUnsupportedClass(): void
@@ -233,7 +236,7 @@ class DataTest extends UnitTestCase
         /** @noinspection PhpUndefinedClassInspection */
         $this->expectExceptionObject(new UnsupportedClassException(DateTime::class));
 
-        new Dummies\UnsupportedClassData();
+        Dummies\UnsupportedClassData::instantiate();
     }
 
     public function testUnsupportedComposite(): void
@@ -241,7 +244,7 @@ class DataTest extends UnitTestCase
         /** @noinspection PhpUndefinedClassInspection */
         $this->expectExceptionObject(new UnsupportedClassException(DateTime::class));
 
-        new Dummies\UnsupportedCompositeData();
+        Dummies\UnsupportedCompositeData::instantiate();
     }
 
     /**
@@ -326,9 +329,7 @@ class DataTest extends UnitTestCase
         /** @noinspection PhpUndefinedClassInspection */
         $class = Dummies\Discriminated\Undefined::class;
         $discriminator = Dummies\Discriminated\AbstractMappedData::undefined;
-        $this->expectExceptionObject(
-            new UndefinedClassDiscriminatorException($class),
-        );
+        $this->expectExceptionObject(new UndefinedClassDiscriminatorException($class));
         Dummies\Discriminated\AbstractMappedData::from(['type' => $discriminator]);
     }
 
@@ -352,9 +353,7 @@ class DataTest extends UnitTestCase
         /** @noinspection PhpUndefinedClassInspection */
         $class = Dummies\Discriminated\Undefined::class;
         $discriminator = 'Undefined';
-        $this->expectExceptionObject(
-            new UndefinedClassDiscriminatorException($class),
-        );
+        $this->expectExceptionObject(new UndefinedClassDiscriminatorException($class));
         Dummies\Discriminated\AbstractUnmappedData::from(['type' => $discriminator]);
     }
 
@@ -362,21 +361,19 @@ class DataTest extends UnitTestCase
     {
         /** @noinspection PhpUndefinedClassInspection */
         $class = Dummies\Discriminated\MappedUnmappedData::class;
-        $this->expectExceptionObject(
-            new UnmappedClassDiscriminatorException($class),
-        );
-        new Dummies\Discriminated\MappedUnmappedData();
+        $this->expectExceptionObject(new UnmappedClassDiscriminatorException($class));
+        Dummies\Discriminated\MappedUnmappedData::instantiate();
     }
 
     public function testNewMappedInstanceIsDiscriminated(): void
     {
-        $dto = new Dummies\Discriminated\MappedLeftData();
+        $dto = Dummies\Discriminated\MappedLeftData::instantiate();
         self::assertEquals(Dummies\Discriminated\AbstractMappedData::left, $dto->type);
     }
 
     public function testNewUnmappedInstanceIsDiscriminated(): void
     {
-        $dto = new Dummies\Discriminated\UnmappedRightData();
+        $dto = Dummies\Discriminated\UnmappedRightData::instantiate();
         self::assertEquals(Dummies\Discriminated\AbstractUnmappedData::UnmappedRightData, $dto->type);
     }
 
@@ -385,7 +382,7 @@ class DataTest extends UnitTestCase
         $this->expectExceptionObject(
             new InvalidNamespaceDiscriminatorException(Dummies\InvalidNamespaceUnmappedData::class)
         );
-        new Dummies\InvalidNamespaceUnmappedData();
+        Dummies\InvalidNamespaceUnmappedData::instantiate();
     }
 
     /**
@@ -428,12 +425,7 @@ class DataTest extends UnitTestCase
 
     public function testInstantiate(): Dummies\TestData
     {
-        $instance = Dummies\TestData::instantiate(
-            function (): void {
-                /** @noinspection PhpDynamicFieldDeclarationInspection */
-                $this->name = 'instantiated';
-            }
-        );
+        $instance = Dummies\TestData::instantiate(name: 'instantiated');
         self::assertEquals('instantiated', $instance->name);
 
         return $instance;
@@ -441,7 +433,7 @@ class DataTest extends UnitTestCase
 
     public function testBare(): void
     {
-        $bare = new Bare();
+        $bare = Bare::instantiate();
         self::assertJsonStringEqualsJsonString('{}', json_encode($bare));
     }
 }
