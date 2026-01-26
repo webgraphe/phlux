@@ -77,13 +77,17 @@ DTOs may be hydrated in different ways:
 The static method `instantiate()` acts as a constructor by accepting parameters named after its public properties. For
 discriminated DTOs, it resolves the discriminator value automatically.
 
-The static method `from()` is suitable for unmarshalling payloads.
+The static method `from()` is suitable for unmarshalling payloads, such as decoded JSON, `stdClass`, `ArrayObject`
+or SPL data structures (that can be transformed into raw PHP composites).
 
-Methods `lazyInstantiate()` and `lazyFrom()` creates lazy instances that initializes only when observed.
+Methods `lazyInstantiate()` and `lazyFrom()` creates lazy instances that initializes only when observed, which may
+reduce the number of previous CPU cycles when dealing with big nested DTOs and complex business logic partially
+navigating them.
 
 > [!CAUTION]
-> Lazy instantiations may defer exceptions that would otherwise have been thrown at creation time with
-> their non-lazy corresponding methods.
+> Lazy DTO instantiations will defer exceptions that would otherwise have been thrown at creation time with
+> their non-lazy corresponding methods only when they are observed for the first time; it is advised to unit test
+> your work without lazy instances to validate your Data Transfer Object definitions.
 
 ```php
 <?php
