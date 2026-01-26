@@ -17,12 +17,12 @@ A Phlux DTO is strictly declared using PHP language constructs; there is **no ma
 The bare minimum to make a class into a DTO is to extend the `readonly` class `Data` which implements
 `DataTransferObject`, inheriting `JsonSerializable` and `IteratorAggregate` in the process.
 
-> While no guarantee to be immutable, a `readonly` class ensures initialized properties cannot be tampered with after
+> While not guaranteed to be immutable, a `readonly` class ensures instances cannot be tampered with after
 initialization, albeit with some caveats:
 >
 > - A DTO cannot have `static` properties
 > - All properties MUST be typed
-> - It's still possible to initialize an uninitialized property after construction (albeit in a `protected(set)` manner).
+> - It's still possible to initialize an uninitialized property after construction (albeit in a `protected(set)` manner)
 
 Supported property types range from:
 
@@ -38,7 +38,7 @@ instances of `stdClass`. Without attributes, composites can store arbitrary data
 A composite property may narrow the type(s) of items it contains with the `#[ItemType]` attribute, passing a
 `class-string` or the name of any aforementioned supported types above.
 
-An `#[ItemPrototype]` attribute may be declared with the the name of another property of the same class to be used as
+An `#[ItemPrototype]` attribute may be declared with the name of another property of the same class to be used as
 the prototype of the collection's item (non-`public` properties can used as prototype for that effect).
 
 All properties can be nullable by either prefixing the type name with a question mark or declaring a union with `null`.
@@ -65,24 +65,25 @@ allows for inheritance and polymorphism of DTOs and their properties to hydrate.
 `final`, non-nullable `string` property on the attributed class containing the discriminator value which can be matched
 against a given mapping or composed with the namespace of the discriminated DTO.
 
-There is no support for Union or Intersection properties, except unions with `null`.
+There is no support (yet) for Union or Intersection properties, except unions with `null`.
 
 Presentation and transportation are handled for all `public` properties (non-`public` properties may be defined but are
-ignored for those aspects).
+not serialized).
 
 ## Instantiation
 
 DTOs may be hydrated in different ways:
 
-The static method `instantiate()` acts as a constructor by accepting parameters named after its public properties.
+The static method `instantiate()` acts as a constructor by accepting parameters named after its public properties. For
+discriminated DTOs, it resolves the discriminator value automatically.
 
 The static method `from()` is suitable for unmarshalling payloads.
 
-The static method `lazy()` creates lazy objects whose initializations are deferred until their state is observed.
+Methods `lazyInstantiate()` and `lazyFrom()` creates lazy instances that initializes only when observed.
 
-Hydrating methods above accept anything that can be passed to `iterator_to_array()` _i.e._ `iterable` (including `array`,
-`ArrayObject` and `DataTransferObject` itself), `stdClass`, or any SPL data structure; freshly decoded JSON can
-immediately be passed to any of them to hydrate a DTO, with associative arrays or objects.
+> [!CAUTION]
+> Lazy instantiations may defer exceptions that would otherwise have been thrown at creation time with
+> their non-lazy corresponding methods.
 
 ```php
 <?php
