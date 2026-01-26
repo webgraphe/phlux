@@ -17,6 +17,7 @@ A Phlux DTO is strictly declared using PHP language constructs; there is **no ma
 The bare minimum to make a class into a DTO is to extend the `readonly` class `Data` which implements
 `DataTransferObject`, inheriting `JsonSerializable` and `IteratorAggregate` in the process.
 
+> [!IMPORTANT]
 > While not guaranteed to be immutable, a `readonly` class ensures instances cannot be tampered with after
 initialization, albeit with some caveats:
 >
