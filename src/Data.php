@@ -10,11 +10,6 @@ use Webgraphe\Phlux\Contracts\DataTransferObject;
 use Webgraphe\Phlux\Exceptions\DiscriminatorException;
 use Webgraphe\Phlux\Exceptions\PresentException;
 
-/**
- * Add support for discriminable
- * Make Data objects into resources
- * Lazy properties?
- */
 abstract readonly class Data implements DataTransferObject
 {
     final public static function instantiate(mixed ...$arguments): static
@@ -22,17 +17,41 @@ abstract readonly class Data implements DataTransferObject
         $reflection = static::meta()->reflectionClass();
         /**
          * @var static $instance
-         * @noinspection PhpUnhandledExceptionInspection
          */
-        $instance = $reflection->newInstanceWithoutConstructor();
+        $instance = $reflection->newInstanceWithoutConstructor(...)();
 
         return $instance->hydrate($arguments);
+    }
+
+    final public static function lazyInstantiate(mixed ...$arguments): static
+    {
+        /**
+         * @noinspection PhpIncompatibleReturnTypeInspection
+         * @phpstan-ignore return.type
+         */
+        return static::meta()->reflectionClass()->newLazyGhost(
+            function (self $instance) use ($arguments): void {
+                Meta::lazy($instance->hydrate(...), $arguments);
+            },
+        );
     }
 
     /**
      * @throws DiscriminatorException
      */
-    final public static function lazy(iterable|stdClass|null $data): static
+    final public static function from(iterable|stdClass|null $data): static
+    {
+        $array = $data instanceof stdClass ? get_object_vars($data) : iterator_to_array($data ?? []);
+
+        /** @noinspection PhpIncompatibleReturnTypeInspection */
+        // @phpstan-ignore return.type
+        return (self::discriminatedMeta(static::meta(), $data)->class)::instantiate(...$array);
+    }
+
+    /**
+     * @throws DiscriminatorException
+     */
+    final public static function lazyFrom(iterable|stdClass|null $data): static
     {
         /**
          * @noinspection PhpIncompatibleReturnTypeInspection
@@ -50,18 +69,6 @@ abstract readonly class Data implements DataTransferObject
         return Meta::get($instance::class)->reflectionClass()->isUninitializedLazyObject($instance);
     }
 
-    /**
-     * @throws DiscriminatorException
-     */
-    final public static function from(iterable|stdClass|null $data): static
-    {
-        $array = $data instanceof stdClass ? get_object_vars($data) : iterator_to_array($data ?? []);
-
-        /** @noinspection PhpIncompatibleReturnTypeInspection */
-        // @phpstan-ignore return.type
-        return (self::discriminatedMeta(static::meta(), $data)->class)::instantiate(...$array);
-    }
-
     private function hydrate(iterable|stdClass|null $data = null): static
     {
         $array = $data instanceof stdClass ? get_object_vars($data) : iterator_to_array($data ?? []);
@@ -76,6 +83,11 @@ abstract readonly class Data implements DataTransferObject
         }
 
         return $this;
+    }
+
+    public function with(mixed ...$arguments): static
+    {
+        return static::instantiate(...($arguments + iterator_to_array(self::meta()->vars($this))));
     }
 
     /**

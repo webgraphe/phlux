@@ -111,7 +111,7 @@ $json = json_encode($johnDoe);
 $johnDoeDeepClone = Person::from(json_decode($johnDoe));
 
 // Creating as lazy-object, hydrated from an associative array
-$lazyJohnDoe = Person::lazy(json_decode($json, true));
+$lazyJohnDoe = Person::lazyFrom(json_decode($json, true));
 
 var_dump(Webgraphe\Phlux\Data::isLazy($lazyJohnDoe)); // true
 

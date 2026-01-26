@@ -201,12 +201,24 @@ class DataTest extends UnitTestCase
         self::assertEquals($dto->toArray(), $fromJson->toArray());
     }
 
+    public function testLazyInstantiate(): void
+    {
+        $dto = Dummies\TestData::lazyInstantiate(data: ['int' => 42]);
+        self::assertTrue(Data::isLazy($dto));
+        $data = $dto->data;
+        self::assertFalse(Data::isLazy($dto));
+
+        self::assertTrue(Data::isLazy($data));
+        self::assertEquals(42, $data->int);
+        self::assertFalse(Data::isLazy($data));
+    }
+
     /**
      * @throws DiscriminatorException
      */
-    public function testLazy(): void
+    public function testLazyFrom(): void
     {
-        $dto = Dummies\TestData::lazy(['data' => ['int' => 42]]);
+        $dto = Dummies\TestData::lazyFrom(['data' => ['int' => 42]]);
         self::assertTrue(Data::isLazy($dto));
         $data = $dto->data;
         self::assertFalse(Data::isLazy($dto));
@@ -435,5 +447,22 @@ class DataTest extends UnitTestCase
     {
         $bare = Bare::instantiate();
         self::assertJsonStringEqualsJsonString('{}', json_encode($bare));
+    }
+
+    public function testWith(): void
+    {
+        $data = [
+            'name' => 'test',
+            'int' => 42,
+            'bool' => true,
+            'float' => M_PI,
+            'nullableString' => 'hello',
+            'array' => [],
+            'object' => [],
+        ];
+
+        $dto = Dummies\TestData::from($data)->with(int: 137, bool: false);
+
+        self::assertEquals([...$data, 'int' => 137, 'bool' => false], $dto->toArray());
     }
 }

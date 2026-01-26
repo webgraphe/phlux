@@ -39,6 +39,10 @@
         ],
         "ci-static-analysis": [
             "vendor/bin/phpstan --configuration=phpstan.src.neon.dist --no-progress"
+        ],
+        "ci-checks": [
+            "@ci-tests-with-coverage",
+            "@ci-static-analysis"
         ]
     },
     "minimum-stability": "stable"
