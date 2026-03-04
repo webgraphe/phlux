@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Webgraphe\PhluxTests\Unit;
 
+use Carbon\Carbon;
 use Closure;
 use DateTime;
 use Error;
@@ -29,6 +30,7 @@ use Webgraphe\Phlux\Exceptions\UnsupportedPropertyTypeException;
 use Webgraphe\Phlux\Meta;
 use Webgraphe\PhluxTests\Dummies;
 use Webgraphe\PhluxTests\Dummies\Bare;
+use Webgraphe\PhluxTests\Dummies\CarbonData;
 use Webgraphe\PhluxTests\Dummies\Discriminated\AbstractAbstractMappedData;
 
 #[CoversClass(Data::class)]
@@ -189,6 +191,14 @@ class DataTest extends UnitTestCase
             $dto->toArray(),
         );
         self::assertEquals($expected, $innerDto->toArray());
+    }
+
+    public function testCarbon(): void
+    {
+        $now = Carbon::now()->microsecond(0);
+        $data = CarbonData::instantiate(datetime: $now->toAtomString());
+
+        self::assertTrue($data->datetime->eq($now));
     }
 
     /**
@@ -449,6 +459,9 @@ class DataTest extends UnitTestCase
         self::assertJsonStringEqualsJsonString('{}', json_encode($bare));
     }
 
+    /**
+     * @throws DiscriminatorException
+     */
     public function testWith(): void
     {
         $data = [
