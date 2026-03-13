@@ -165,6 +165,7 @@ final class Meta implements EventEmitter
             return $this->unmarshallers[$name] = static fn(): string => $value;
         }
 
+        // FIXME How can one figure out attributes without the property?
         $typeUnmarshaller = $this->typeUnmarshaller(
             $property->getType(),
             "$this->class::$name",
@@ -256,7 +257,7 @@ final class Meta implements EventEmitter
                 => $value instanceof DateTimeImmutable ? $value : new $class($value ?? 'now'),
             DateTimeInterface::class === $class => static fn(mixed $value)
                 => $value instanceof DateTimeInterface
-                ? DateTimeImmutable::createFromFormat('U.u', $value->format('U.u'))->setTimezone($value->getTimezone())
+                ? DateTimeImmutable::createFromInterface($value)
                 : new DateTimeImmutable($value ?? 'now'),
             is_subclass_of($class, BackedEnum::class) => static fn(mixed $value)
                 => $value instanceof $class
@@ -317,6 +318,7 @@ final class Meta implements EventEmitter
         ReflectionNamedType $type,
         string $stub,
     ): Closure {
+        // FIXME An item prototype may be referencing a property with attributes; how can they be retrieved?
         $itemUnmarshaller = match (false) {
             !$itemPrototype => $this->propertyUnmarshaller(
                 (fn() => $this->reflectionClass()->getProperty($itemPrototype->propertyName))(),

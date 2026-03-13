@@ -8,7 +8,7 @@ use Attribute;
 use ReflectionNamedType;
 
 /**
- * Declares the item type of an array or object
+ * Declares the item type of array or object
  */
 #[Attribute(Attribute::TARGET_PROPERTY)]
 final readonly class ItemType

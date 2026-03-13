@@ -7,7 +7,7 @@ namespace Webgraphe\Phlux\Attributes;
 use Attribute;
 
 /**
- * Declares the item type of an array or object by using another property as prototype
+ * Declares the item type of array or object by using another property as prototype
  */
 #[Attribute(Attribute::TARGET_PROPERTY)]
 final readonly class ItemPrototype
