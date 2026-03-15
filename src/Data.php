@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Webgraphe\Phlux;
 
+use ReflectionException;
 use stdClass;
 use Traversable;
 use Webgraphe\Phlux\Contracts\DataTransferObject;
@@ -123,7 +124,11 @@ abstract readonly class Data implements DataTransferObject
 
     final public function offsetExists(mixed $offset): bool
     {
-        return static::meta()->hasInitializedProperty($this, (string)$offset);
+        try {
+            return static::meta()->hasInitializedProperty($this, (string)$offset);
+        } catch (ReflectionException) {
+            return false;
+        }
     }
 
     final public function offsetGet(mixed $offset): mixed

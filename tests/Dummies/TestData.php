@@ -24,6 +24,12 @@ readonly class TestData extends IdentityData
     public object $nullableStringMap;
     #[ItemPrototype('strings'), Present]
     public array $stringsArray;
+    #[ItemType('int'), Present]
+    public array $ints;
+    #[ItemType('float'), Present]
+    public array $floats;
+    #[ItemType('bool'), Present]
+    public array $bools;
     #[Present]
     public ?self $data;
     #[Present]
@@ -34,4 +40,8 @@ readonly class TestData extends IdentityData
     public YesNoMaybeEnum $yesNoMaybeEnum;
     #[Present]
     public OneTwoThreeEnum $oneTwoThreeEnum;
+    #[ItemType(DateTimeInterface::class), Present]
+    public array $dateTimeInterfaces;
+    #[ItemType(DateTimeImmutable::class), Present]
+    public array $dateTimeImmutables;
 }

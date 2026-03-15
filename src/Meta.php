@@ -14,7 +14,6 @@ use ReflectionClass;
 use ReflectionException;
 use ReflectionNamedType;
 use ReflectionProperty;
-use ReflectionType;
 use Webgraphe\Phlux\Attributes\Discriminator;
 use Webgraphe\Phlux\Attributes\ItemPrototype;
 use Webgraphe\Phlux\Attributes\ItemType;
@@ -62,6 +61,15 @@ final class Meta implements EventEmitter
         }
     }
 
+    private function propertyName(ReflectionProperty $property): string
+    {
+        $className = $property->getDeclaringClass()->getName();
+
+        return is_a($this->class, $className, true)
+            ? $property->getName()
+            : sprintf('%s::$%s', $className, $property->getName());
+    }
+
     /**
      * @param class-string<DataTransferObject> $class
      */
@@ -105,6 +113,11 @@ final class Meta implements EventEmitter
             ??= (static fn(string $c): ReflectionClass => new ReflectionClass($c))($this->class);
     }
 
+    private function reflectionProperty(string $name): ReflectionProperty
+    {
+        return (fn() => $this->reflectionClass()->getProperty($name))();
+    }
+
     /**
      * @throws DiscriminatorException
      */
@@ -117,7 +130,7 @@ final class Meta implements EventEmitter
                     throw new DiscriminatorException("Discriminator MUST be declared on abstract class");
                 }
 
-                $property = (fn() => $this->reflectionClass()->getProperty($discriminator->propertyName))();
+                $property = $this->reflectionProperty($discriminator->propertyName);
                 if ($property->getDeclaringClass()->getName() !== $this->class) {
                     throw new DiscriminatorException("Discriminator property MUST be declared on attributed class");
                 }
@@ -142,7 +155,7 @@ final class Meta implements EventEmitter
         return self::$discriminators[$this->class];
     }
 
-    private static function isComposite(ReflectionNamedType $type): bool
+    private static function isCollection(ReflectionNamedType $type): bool
     {
         return in_array($type->getName(), ['array', 'object']);
     }
@@ -153,64 +166,39 @@ final class Meta implements EventEmitter
      * @throws UnsupportedClassException
      * @throws UnsupportedPropertyTypeException
      */
-    private function propertyUnmarshaller(ReflectionProperty $property): Closure
-    {
-        if (isset($this->unmarshallers[$name = $property->getName()])) {
+    private function propertyUnmarshaller(
+        ReflectionProperty $property,
+        ?ReflectionProperty $compositeProperty = null,
+    ): Closure {
+        $name = $this->propertyName($property);
+        if (isset($this->unmarshallers[$name])) {
             return $this->unmarshallers[$name];
         }
 
-        if (($discriminator = $this->getDiscriminator())?->propertyName === $name) {
-            $value = $discriminator->resolveValue($this->class, $property->getDeclaringClass()->getName());
+        if ($discriminator = $this->getDiscriminator()) {
+            if ($this->propertyName($this->reflectionProperty($discriminator->propertyName)) === $name) {
+                $value = $discriminator->resolveValue($this->class, $property->getDeclaringClass()->getName());
 
-            return $this->unmarshallers[$name] = static fn(): string => $value;
+                return $this->unmarshallers[$name] = static fn(): string => $value;
+            }
         }
 
-        // FIXME How can one figure out attributes without the property?
-        $typeUnmarshaller = $this->typeUnmarshaller(
-            $property->getType(),
-            "$this->class::$name",
-            ($property->getAttributes(ItemPrototype::class)[0] ?? null)?->newInstance(),
-            ($property->getAttributes(ItemType::class)[0] ?? null)?->newInstance(),
-            $property->getDeclaringClass()->getName(),
-        );
+        if (!(($type = $property->getType()) instanceof ReflectionNamedType)) {
+            throw new UnsupportedPropertyTypeException($name);
+        }
 
-        return $this->unmarshallers[$name] = static function (mixed $value = null) use (
-            $property,
-            $typeUnmarshaller,
-        ): mixed {
+        $unmarshaller = match (true) {
+            !$type->isBuiltin() => self::classUnmarshaller($property, $compositeProperty),
+            self::isCollection($type) => $this->collectionUnmarshaller($property, $compositeProperty),
+            default => self::builtInMarshaller($type, $compositeProperty),
+        };
+
+        return $this->unmarshallers[$name] = static function (mixed $value = null) use ($property, $unmarshaller): mixed {
             if (!func_num_args() && $property->getAttributes(Present::class)) {
                 throw new PresentException();
             }
 
-            return $typeUnmarshaller($value);
-        };
-    }
-
-    /**
-     * @throws DiscriminatorException
-     * @throws UnknownClassException
-     * @throws UnsupportedClassException
-     * @throws UnsupportedPropertyTypeException
-     */
-    private function typeUnmarshaller(
-        ReflectionType $type,
-        string $stub,
-        ?ItemPrototype $itemPrototype = null,
-        ?ItemType $itemType = null,
-        ?string $declaringClass = null,
-    ): Closure {
-        if (!($type instanceof ReflectionNamedType)) {
-            throw new UnsupportedPropertyTypeException($stub);
-        }
-
-        return match (true) {
-            !$type->isBuiltin() => self::classUnmarshaller(
-                self::supportedClass($type->getName(), $declaringClass),
-                $type,
-                $stub,
-            ),
-            self::isComposite($type) => $this->compositeUnmarshaller($itemPrototype, $itemType, $type, $stub),
-            default => self::builtInMarshaller($type),
+            return $unmarshaller($value);
         };
     }
 
@@ -246,10 +234,14 @@ final class Meta implements EventEmitter
     }
 
     /**
+     * @throws UnknownClassException
+     * @throws UnsupportedClassException
      * @throws UnsupportedPropertyTypeException
      */
-    private static function classUnmarshaller(string $class, ReflectionType $type, string $stub): Closure
+    private function classUnmarshaller(ReflectionProperty $property): Closure
     {
+        $type = $property->getType();
+        $class = self::supportedClass($type->getName(), $property->getDeclaringClass()->getName());
         $callable = match (true) {
             is_a($class, DataTransferObject::class, true) => static fn(mixed $value)
                 => self::$lazy ? $class::lazyFrom($value) : $class::from($value),
@@ -264,7 +256,7 @@ final class Meta implements EventEmitter
                 ? $value
                 : (isset($value) ? $class::tryFrom($value) : null) ?? $class::cases()[0] ?? null,
             // @codeCoverageIgnoreStart
-            default => throw new UnsupportedPropertyTypeException($stub),
+            default => throw new UnsupportedPropertyTypeException($this->propertyName($property)),
             // @codeCoverageIgnoreEnd
         };
 
@@ -307,48 +299,45 @@ final class Meta implements EventEmitter
     }
 
     /**
-     * @throws DiscriminatorException
      * @throws UnknownClassException
      * @throws UnsupportedClassException
      * @throws UnsupportedPropertyTypeException
+     * @throws DiscriminatorException
      */
-    private function compositeUnmarshaller(
-        ?ItemPrototype $itemPrototype,
-        ?ItemType $itemType,
-        ReflectionNamedType $type,
-        string $stub,
-    ): Closure {
-        // FIXME An item prototype may be referencing a property with attributes; how can they be retrieved?
-        $itemUnmarshaller = match (false) {
-            !$itemPrototype => $this->propertyUnmarshaller(
-                (fn() => $this->reflectionClass()->getProperty($itemPrototype->propertyName))(),
-            ),
-            !$itemType => $this->typeUnmarshaller($itemType->asReflectionNamedType(), $stub),
-            default => static fn(mixed $value): mixed => $value,
-        };
+    private function collectionUnmarshaller(ReflectionProperty $property): Closure
+    {
+        if (empty($itemProperty = ItemType::itemProperty($property))) {
+            if ($prototype = ItemPrototype::fromProperty($property)) {
+                $itemProperty = $this->reflectionProperty($prototype->propertyName);
+            }
+        }
 
-        $allowsNull = $type->allowsNull();
+        $unmarshaller = isset($itemProperty)
+            ? $this->propertyUnmarshaller($itemProperty, $property)
+            : static fn(mixed $value): mixed => $value;
+
+        $allowsNull = ($type = $property->getType())->allowsNull();
         $name = $type->getName();
 
-        return static function (mixed $value) use ($allowsNull, $itemUnmarshaller, $name) {
+        return static function (mixed $value) use ($allowsNull, $unmarshaller, $name) {
             if ($allowsNull && null === $value) {
                 return null;
             }
 
-            $value = array_map($itemUnmarshaller, is_object($value) ? get_object_vars($value) : ($value ?? []));
+            $value = array_map($unmarshaller, is_object($value) ? get_object_vars($value) : ($value ?? []));
             settype($value, $name);
 
             return 'array' === $name ? array_values($value) : $value;
         };
     }
 
+    /**
+     * @throws ReflectionException
+     */
     public function hasInitializedProperty(DataTransferObject $object, string $name): bool
     {
-        try {
-            $property = $this->reflectionClass()->getProperty($name);
-            return $property->isPublic() && $property->isInitialized($object);
-        } catch (ReflectionException) {
-            return false;
-        }
+        $property = $this->reflectionClass()->getProperty($name);
+
+        return $property->isPublic() && $property->isInitialized($object);
     }
 }
