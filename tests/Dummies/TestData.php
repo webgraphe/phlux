@@ -44,4 +44,8 @@ readonly class TestData extends IdentityData
     public array $dateTimeInterfaces;
     #[ItemType(DateTimeImmutable::class), Present]
     public array $dateTimeImmutables;
+    #[ItemType(YesNoMaybeEnum::class), Present]
+    public array $yesNoMaybeEnums;
+    #[ItemType(OneTwoThreeEnum::class), Present]
+    public array $oneTwoThreeEnums;
 }

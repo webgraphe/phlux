@@ -149,6 +149,9 @@ class DataTest extends UnitTestCase
                     json_encode(
                         $data = [
                             'strings' => ['foo', 'bar'],
+                            'ints' => [1, 2, 3],
+                            'floats' => [M_PI, M_E],
+                            'bools' => [true, false, true],
                             'nullableStringMap' => ['hello' => 'world'],
                             'stringsArray' => [['a', 'b'], ['c', 'd']],
                             'data' => ['int' => 42],
@@ -156,6 +159,17 @@ class DataTest extends UnitTestCase
                             'dateTimeInterface' => '2025-07-27 11:57:24 America/Montreal',
                             'yesNoMaybeEnum' => Dummies\YesNoMaybeEnum::NO->value,
                             'oneTwoThreeEnum' => Dummies\OneTwoThreeEnum::THREE->value,
+                            'dateTimeImmutables' => ['2025-07-27 11:57:23 America/Montreal'],
+                            'dateTimeInterfaces' => ['2025-07-27 11:57:24 America/Montreal'],
+                            'yesNoMaybeEnums' => [
+                                Dummies\YesNoMaybeEnum::YES->value,
+                                Dummies\YesNoMaybeEnum::NO->value,
+                            ],
+                            'oneTwoThreeEnums' => [
+                                Dummies\OneTwoThreeEnum::THREE->value,
+                                Dummies\OneTwoThreeEnum::TWO->value,
+                                Dummies\OneTwoThreeEnum::ONE->value,
+                            ],
                         ],
                     ),
                 ),
@@ -268,11 +282,11 @@ class DataTest extends UnitTestCase
     {
         self::assertInstanceOf(
             Dummies\Discriminated\MappedLeftData::class,
-            Dummies\Discriminated\AbstractMappedData::from(['type' => Dummies\Discriminated\AbstractMappedData::left])
+            Dummies\Discriminated\AbstractMappedData::from(['type' => Dummies\Discriminated\AbstractMappedData::left]),
         );
         self::assertInstanceOf(
             Dummies\Discriminated\MappedRightData::class,
-            Dummies\Discriminated\AbstractMappedData::from(['type' => Dummies\Discriminated\AbstractMappedData::right])
+            Dummies\Discriminated\AbstractMappedData::from(['type' => Dummies\Discriminated\AbstractMappedData::right]),
         );
     }
 
@@ -308,7 +322,7 @@ class DataTest extends UnitTestCase
                 'unmapped' => [
                     'type' => Dummies\Discriminated\AbstractUnmappedData::UnmappedRightData,
                 ],
-            ]
+            ],
         );
         self::assertInstanceOf(Dummies\Discriminated\MappedLeftData::class, $dto->mapped);
         self::assertInstanceOf(Dummies\Discriminated\UnmappedRightData::class, $dto->unmapped);
@@ -394,7 +408,7 @@ class DataTest extends UnitTestCase
     public function testNewInvalidNamespaceUnmappedInstance(): void
     {
         $this->expectExceptionObject(
-            new InvalidNamespaceDiscriminatorException(Dummies\InvalidNamespaceUnmappedData::class)
+            new InvalidNamespaceDiscriminatorException(Dummies\InvalidNamespaceUnmappedData::class),
         );
         Dummies\InvalidNamespaceUnmappedData::instantiate();
     }
@@ -412,7 +426,9 @@ class DataTest extends UnitTestCase
     #[DataProvider('dataProviderInvalidDiscriminatorProperty')]
     public function testInvalidDiscriminatorProperty(string $class): void
     {
-        $this->expectExceptionObject(new DiscriminatorException('Discriminator property MUST be a final non-nullable string'));
+        $this->expectExceptionObject(
+            new DiscriminatorException('Discriminator property MUST be a final non-nullable string'),
+        );
         $class::from(null);
     }
 
@@ -421,7 +437,9 @@ class DataTest extends UnitTestCase
      */
     public function testDiscriminatorPropertyOnNonAttributedClass(): void
     {
-        $this->expectExceptionObject(new DiscriminatorException('Discriminator property MUST be declared on attributed class'));
+        $this->expectExceptionObject(
+            new DiscriminatorException('Discriminator property MUST be declared on attributed class'),
+        );
         AbstractAbstractMappedData::from(null);
     }
 

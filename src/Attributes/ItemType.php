@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Webgraphe\Phlux\Attributes;
 
 use Attribute;
+use BackedEnum;
 use DateTimeImmutable;
 use DateTimeInterface;
 use ReflectionProperty;
@@ -32,15 +33,22 @@ final readonly class ItemType extends Data
     private DataTransferObject $DataTransferObject;
     private DateTimeInterface $DateTimeInterface;
     private DateTimeImmutable $DateTimeImmutable;
+    private BackedEnum $BackedEnum;
 
     private const array CLASS_PROPERTIES = [
         DataTransferObject::class => 'DataTransferObject',
         DateTimeInterface::class => 'DateTimeInterface',
         DateTimeImmutable::class => 'DateTimeImmutable',
+        BackedEnum::class => 'BackedEnum',
     ];
 
     public function __construct(public string $type) {}
 
+    public static function fromProperty(?ReflectionProperty $property): ?self
+    {
+        /** @noinspection PhpIncompatibleReturnTypeInspection */
+        return ($property?->getAttributes(self::class)[0] ?? null)?->newInstance();
+    }
     /**
      * @throws UnsupportedClassException
      */
