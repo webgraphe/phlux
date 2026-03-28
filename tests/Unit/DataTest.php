@@ -275,6 +275,14 @@ class DataTest extends UnitTestCase
         Dummies\UnsupportedClassData::instantiate();
     }
 
+    public function testUnsupportedClassCollection(): void
+    {
+        /** @noinspection PhpUndefinedClassInspection */
+        $this->expectExceptionObject(new UnsupportedClassException(DateTime::class));
+
+        Dummies\UnsupportedClassCollectionData::instantiate();
+    }
+
     /**
      * @throws DiscriminatorException
      */

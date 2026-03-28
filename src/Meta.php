@@ -61,13 +61,6 @@ final class Meta implements EventEmitter
         }
     }
 
-    private static function dateTimeInterfaceUnmarshaller(mixed $value): DateTimeInterface
-    {
-        return $value instanceof DateTimeInterface
-            ? DateTimeImmutable::createFromInterface($value)
-            : (static fn() => new DateTimeImmutable($value ?? 'now'))();
-    }
-
     /**
      * @param class-string<DataTransferObject> $class
      */
@@ -83,8 +76,14 @@ final class Meta implements EventEmitter
     {
         static $closures = [];
 
-        return $closures[$class] ??= static fn(mixed $value)
-            => $value instanceof DateTimeImmutable ? $value : new $class($value ?? 'now');
+        return $closures[$class] ??= match($class) {
+            DateTimeInterface::class => static fn(mixed $value)
+                => $value instanceof DateTimeInterface
+                ? DateTimeImmutable::createFromInterface($value)
+                : (static fn() => new DateTimeImmutable($value ?? 'now'))(),
+            default => static fn(mixed $value)
+                => $value instanceof DateTimeImmutable ? $value : new $class($value ?? 'now'),
+        };
     }
 
     /**
@@ -112,9 +111,13 @@ final class Meta implements EventEmitter
     {
         $className = $property->getDeclaringClass()->getName();
 
-        return is_a($this->class, $className, true)
-            ? $property->getName()
-            : sprintf('%s::$%s', $className, $property->getName());
+        if (is_a($this->class, $className, true)) {
+            return $property->getName();
+        }
+
+        return ($name = $property->getType()->getName()) === $property->getName()
+            ? sprintf('%s::$%s', $className, $property->getName())
+            : sprintf('%s<%s>', $property->getName(), $name);
     }
 
     /**
@@ -213,14 +216,9 @@ final class Meta implements EventEmitter
      * @throws UnsupportedClassException
      * @throws UnsupportedPropertyTypeException
      */
-    private function propertyUnmarshaller(
-        ReflectionProperty $property,
-        ?ReflectionProperty $compositeProperty = null,
-    ): Closure {
+    private function propertyUnmarshaller(ReflectionProperty $property): Closure
+    {
         $name = $this->propertyName($property);
-        if ($compositeProperty) {
-            $name = sprintf('%s<%s>', $this->propertyName($compositeProperty), $name);
-        }
 
         if (isset($this->unmarshallers[$name])) {
             return $this->unmarshallers[$name];
@@ -239,9 +237,9 @@ final class Meta implements EventEmitter
         }
 
         $unmarshaller = match (true) {
-            !$type->isBuiltin() => self::classUnmarshaller($property, $compositeProperty),
-            self::isCollection($type) => $this->collectionUnmarshaller($property, $compositeProperty),
-            default => self::builtInMarshaller($type, $compositeProperty),
+            self::isCollection($type) => $this->collectionUnmarshaller($property),
+            !$type->isBuiltin() => self::classUnmarshaller($property),
+            default => self::builtInMarshaller($type),
         };
 
         return $this->unmarshallers[$name] = static function (mixed $value = null) use (
@@ -292,21 +290,17 @@ final class Meta implements EventEmitter
      * @throws UnsupportedClassException
      * @throws UnsupportedPropertyTypeException
      */
-    private function classUnmarshaller(ReflectionProperty $property, ?ReflectionProperty $compositeProperty): Closure
+    private function classUnmarshaller(ReflectionProperty $property): Closure
     {
         $type = $property->getType();
-        $class = ItemType::fromProperty($compositeProperty)?->type
-            ?? self::supportedClass($type->getName(), $property->getDeclaringClass()->getName());
+        $class = self::supportedClass($type->getName(), $property->getDeclaringClass()->getName());
 
         $callable = match (true) {
             is_a($class, DataTransferObject::class, true) => self::getDataTransferObjectUnmarshaller($class),
-            is_a($class, DateTimeImmutable::class, true) => self::getDateTimeImmutableUnmarshaller($class),
-            DateTimeInterface::class === $class => self::dateTimeInterfaceUnmarshaller(...),
+            is_a($class, DateTimeInterface::class, true) => self::getDateTimeImmutableUnmarshaller($class),
             is_a($class, BackedEnum::class, true) => self::getBackedEnumUnmarshaller($class),
             // @codeCoverageIgnoreStart
-            default => throw new UnsupportedPropertyTypeException(
-                $class . ':' . $this->propertyName($property),
-            ),
+            default => throw new UnsupportedPropertyTypeException($class . ':' . $this->propertyName($property)),
             // @codeCoverageIgnoreEnd
         };
 
@@ -363,7 +357,7 @@ final class Meta implements EventEmitter
         }
 
         $unmarshaller = isset($itemProperty)
-            ? $this->propertyUnmarshaller($itemProperty, $property)
+            ? $this->propertyUnmarshaller($itemProperty)
             : static fn(mixed $value): mixed => $value;
 
         $allowsNull = ($type = $property->getType())->allowsNull();

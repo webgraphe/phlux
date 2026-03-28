@@ -6,8 +6,8 @@ namespace Webgraphe\Phlux\Attributes;
 
 use Attribute;
 use BackedEnum;
-use DateTimeImmutable;
 use DateTimeInterface;
+use ReflectionNamedType;
 use ReflectionProperty;
 use Webgraphe\Phlux\Contracts\DataTransferObject;
 use Webgraphe\Phlux\Data;
@@ -32,23 +32,16 @@ final readonly class ItemType extends Data
     private object $object;
     private DataTransferObject $DataTransferObject;
     private DateTimeInterface $DateTimeInterface;
-    private DateTimeImmutable $DateTimeImmutable;
     private BackedEnum $BackedEnum;
 
     private const array CLASS_PROPERTIES = [
         DataTransferObject::class => 'DataTransferObject',
         DateTimeInterface::class => 'DateTimeInterface',
-        DateTimeImmutable::class => 'DateTimeImmutable',
         BackedEnum::class => 'BackedEnum',
     ];
 
     public function __construct(public string $type) {}
 
-    public static function fromProperty(?ReflectionProperty $property): ?self
-    {
-        /** @noinspection PhpIncompatibleReturnTypeInspection */
-        return ($property?->getAttributes(self::class)[0] ?? null)?->newInstance();
-    }
     /**
      * @throws UnsupportedClassException
      */
@@ -60,21 +53,49 @@ final readonly class ItemType extends Data
 
         /** @var self $attribute */
         if (($classReflection = self::meta()->reflectionClass())->hasProperty($attribute->type)) {
-            $selfReflection = (static fn() => $classReflection->getProperty($attribute->type))();
-        } else {
-            foreach (self::CLASS_PROPERTIES as $class => $propertyName) {
-                if (is_a($attribute->type, $class, true)) {
-                    $selfReflection = (static fn () => $classReflection->getProperty($propertyName))();
-                    break;
-                }
+            return (static fn() => $classReflection->getProperty($attribute->type))();
+        }
+
+        foreach (self::CLASS_PROPERTIES as $class => $propertyName) {
+            if (!is_a($attribute->type, $class, true)) {
+                continue;
             }
 
+            return new class(ItemType::class, $propertyName, $attribute->type) extends ReflectionProperty {
+                private ReflectionNamedType $type;
+
+                public function __construct(string $class, string $propertyName, string $typeClass)
+                {
+                    parent::__construct($class, $propertyName);
+                    $this->type = new class($typeClass) extends ReflectionNamedType {
+                        public function __construct(private readonly string $typeClass) {}
+
+                        public function getName(): string
+                        {
+                            return $this->typeClass;
+                        }
+
+                        public function isBuiltin(): bool
+                        {
+                            return false;
+                        }
+
+                        public function allowsNull(): bool
+                        {
+                            return false;
+                        }
+                    };
+                }
+
+                public function getType(): ReflectionNamedType
+                {
+                    return $this->type;
+                }
+            };
         }
 
-        if (!isset($selfReflection)) {
-            throw new UnsupportedClassException($attribute->type);
-        }
-
-        return $selfReflection;
+        // @codeCoverageIgnoreStart
+        throw new UnsupportedClassException($attribute->type);
+        // @codeCoverageIgnoreEnd
     }
 }
